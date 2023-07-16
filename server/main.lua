@@ -86,7 +86,6 @@ RegisterNetEvent("qb-garage:server:UpdateSpawnedVehicle", function(plate, value)
 end)
 
 QBCore.Functions.CreateCallback('qb-garage:server:spawnvehicle', function(source, cb, vehInfo, coords, warp)
-    local veh = QBCore.Functions.SpawnVehicle(source, vehInfo.vehicle, coords, warp)
     local veh = SpawnVehicle(source, vehInfo.vehicle, coords, warp)
 
     if not veh or not NetworkGetNetworkIdFromEntity(veh) then
