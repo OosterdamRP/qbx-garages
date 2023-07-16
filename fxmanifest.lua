@@ -7,7 +7,8 @@ author 'JDev'
 
 shared_scripts {
     '@ox_lib/init.lua',
-    '@qb-core/shared/locale.lua',
+    '@qbx-core/shared/locale.lua',
+    '@qbx-core/import.lua',
     'config.lua',
     'locales/en.lua',
     'locales/*.lua'
@@ -20,6 +21,10 @@ client_scripts {
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/main.lua'
+}
+
+modules {
+    'qbx-core:utils'
 }
 
 lua54 'yes'
