@@ -1,36 +1,41 @@
+<!-- @format -->
+
 # qbx-garages
 
+**ATENTION: THIS SCRIPT USES THE LATEST VERSION OF THE
+[RADIALMENU](https://github.com/Qbox-project/qbx-radialmenu) AND
+[QBX-CORE](https://github.com/Qbox-project/qbx-core)**
 
-**ATENTION: THIS SCRIPT USES THE LATEST VERSION OF THE [RADIALMENU](https://github.com/Qbox-project/qbx-radialmenu) AND [QBX-CORE](https://github.com/Qbox-project/qbx-core)**
-
-This is a qb-garages script that uses the radialmenu to retrieve and park vehicles.
-Almost everything is fully customizable to the last bit!
+This is a qbx-garages script that uses the qbx-radialmenu (ox_lib based radial
+menu) to retrieve and park vehicles. Almost everything is fully customizable to
+the last bit!
 
 **For screenshots scroll down**
 
 ## Dependencies
- - [qbx-radialmenu](https://github.com/Qbox-project/qbx-radialmenu)
- - [qbx-core](https://github.com/Qbox-project/qbx-core)
+
+-  [qbx-radialmenu](https://github.com/Qbox-project/qbx-radialmenu)
+-  [qbx-core](https://github.com/Qbox-project/qbx-core)
 
 ## Installation
 
 Drag 'n Drop replace for qbx-garages.
 
-- Delete qbx-garages.
-- Drag the downloaded qbx-garages folder into the [qbx] folder.
-- If you want to use the latest features, apply patch1.sql to your DB
+-  Delete qbx-garages.
+-  Drag the downloaded qbx-garages folder into the [qbx] folder.
+-  If you want to use the latest features, apply patch1.sql to your DB
 
 ## Features
 
-* Public Garages
-* House Garages
-* Gang Garages
-* Job Garages
-* Depot Garages
-* Blips and names
-* Custom DrawText
-* Water Garages
-* Aircraft Garages
+-  Public Garages
+-  House Garages
+-  Gang Garages
+-  Job Garages
+-  Depot Garages
+-  Blips and names
+-  Custom DrawText
+-  Water Garages
+-  Aircraft Garages
 
 ## Screenshots
 
@@ -80,18 +85,19 @@ Everything that says optional can be omitted.
         ParkingDistance = 10.0 -- Optional ParkingDistance, to override the global ParkingDistance
         SpawnDistance = 5.0 -- Optional SpawnDistance, to override the global SpawnDistance
         debug = false -- Optional, will show the polyzone and the parking spots, helpful when creating new garages. If too many garages are set to debug, it will not show all parking lots
-        ExitWarpLocations: { -- Optional, Used for e.g. Boat parking, to teleport the player out of the boat to the closest location defined in the list. 
+        ExitWarpLocations: { -- Optional, Used for e.g. Boat parking, to teleport the player out of the boat to the closest location defined in the list.
             vector3(-807.15, -1496.86, 1.6),
             vector3(-800.17, -1494.87, 1.6),
             vector3(-792.92, -1492.18, 1.6),
             vector3(-787.58, -1508.59, 1.6),
             vector3(-794.89, -1511.16, 1.6),
             vector3(-800.21, -1513.05, 1.6),
-        } 
+        }
     },
 ```
 
 ### parking vehicle using target
+
 ```
 local garageName = 'pdgarage'
     exports['qb-target']:AddBoxZone(garageName, vector3(469.51, -992.35, 26.27), 0.2, 0.2, {
@@ -113,7 +119,9 @@ local garageName = 'pdgarage'
         distance = 3
     })
 ```
+
 ### improved phone tracking (DEPRECATED)
+
 Replace:
 
 ```
@@ -149,11 +157,15 @@ end)
 
 ## Credits
 
-* [ARSSANTO](https://github.com/ARSSANTO) - For making code style suggestions and helping me improve the performance.
-* [JustLazzy](https://github.com/JustLazzy) - I used part of his qb-garages script.
-* [bamablood94](https://github.com/bamablood94) - I used part of his qb-garages script.
-* [QBCore Devs](https://github.com/qbcore-framework/) - For making an awesome framework and enabling me to do this.
-* QBCore Community - Thank you so much for everyone who's been testing this!
+-  [ARSSANTO](https://github.com/ARSSANTO) - For making code style suggestions
+   and helping me improve the performance.
+-  [JustLazzy](https://github.com/JustLazzy) - I used part of his qb-garages
+   script.
+-  [bamablood94](https://github.com/bamablood94) - I used part of his qb-garages
+   script.
+-  [QBCore Devs](https://github.com/qbcore-framework/) - For making an awesome
+   framework and enabling me to do this.
+-  QBCore Community - Thank you so much for everyone who's been testing this!
 
 ## Support
 
@@ -176,4 +188,3 @@ Join my Discord server: https://discord.gg/pqcug3XSQx
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-
