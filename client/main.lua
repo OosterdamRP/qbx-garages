@@ -746,15 +746,24 @@ RegisterNetEvent('qb-garages:client:TakeOutGarage', function(data, cb)
         SpawnVehicleSpawnerVehicle(vehicleModel, location, heading, cb)
     else
         if Config.SpawnVehiclesServerside then
-            QBCore.Functions.TriggerCallback('qb-garage:server:spawnvehicle', function(netId, properties)
-                    local veh = NetToVeh(netId)
-                    if not veh or not netId then
-                        print("ISSUE HERE: ", netId)
-                    end
-                    UpdateSpawnedVehicle(veh, vehicle, heading, garage, properties)
-                    if cb then cb(veh) end
-                end, vehicle, location,
+            local netId, properties = lib.callback.await('qb-garage:server:spawnvehicle', false, vehicle, location,
                 garage.WarpPlayerIntoVehicle or Config.WarpPlayerIntoVehicle and garage.WarpPlayerIntoVehicle == nil)
+
+            local timeout = 100
+
+            while not NetworkDoesEntityExistWithNetworkId(netId) and timeout > 0 do
+                Wait(10)
+                timeout -= 1
+            end
+
+            local veh = NetToVeh(netId)
+            if not veh or not netId then
+                print("ISSUE HERE: ", netId)
+            end
+
+            UpdateSpawnedVehicle(veh, vehicle, heading, garage, properties)
+
+            if cb then cb(veh) end
         else
             QBCore.Functions.SpawnVehicle(vehicleModel, function(veh)
                     QBCore.Functions.TriggerCallback('qb-garage:server:GetVehicleProperties', function(properties)
