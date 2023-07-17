@@ -12,24 +12,6 @@ local VehicleClassMap = {}
 local GarageZones = {}
 
 -- helper functions
-local function TableContains(tab, val)
-    if type(val) == "table" then -- checks if atleast one the values in val is contained in tab
-        for _, value in ipairs(tab) do
-            if TableContains(val, value) then
-                return true
-            end
-        end
-        return false
-    else
-        for _, value in ipairs(tab) do
-            if value == val then
-                return true
-            end
-        end
-    end
-    return false
-end
-
 function TrackVehicleByPlate(plate)
     QBCore.Functions.TriggerCallback('qb-garages:server:GetVehicleLocation', function(coords)
         SetNewWaypoint(coords.x, coords.y)
@@ -44,11 +26,11 @@ end
 
 local function GetSuperCategoryFromCategories(categories)
     local superCategory = 'car'
-    if TableContains(categories, { 'car' }) then
+    if lib.table.contains(categories, { 'car' }) then
         superCategory = 'car'
-    elseif TableContains(categories, { 'plane', 'helicopter' }) then
+    elseif lib.table.contains(categories, { 'plane', 'helicopter' }) then
         superCategory = 'air'
-    elseif TableContains(categories, 'boat') then
+    elseif lib.table.contains(categories, 'boat') then
         superCategory = 'sea'
     end
     return superCategory
@@ -259,7 +241,7 @@ local function IsAuthorizedToAccessGarage(garageName)
         if type(garage.job) == "string" and not IsStringNilOrEmpty(garage.job) then
             return PlayerJob.name == garage.job
         elseif type(garage.job) == "table" then
-            return TableContains(garage.job, PlayerJob.name)
+            return lib.table.contains(garage.job, PlayerJob.name)
         else
             QBCore.Functions.Notify('job not defined on garage', 'error', 7500)
             return false
@@ -268,7 +250,7 @@ local function IsAuthorizedToAccessGarage(garageName)
         if type(garage.gang) == "string" and not IsStringNilOrEmpty(garage.gang) then
             return garage.gang == PlayerGang.name
         elseif type(garage.gang) == "table" then
-            return TableContains(garage.gang, PlayerGang.name)
+            return lib.table.contains(garage.gang, PlayerGang.name)
         else
             QBCore.Functions.Notify('gang not defined on garage', 'error', 7500)
             return false
@@ -285,7 +267,7 @@ local function CanParkVehicle(veh, garageName, vehLocation)
     local vehClass = GetVehicleClass(veh)
     local vehCategories = GetVehicleCategoriesFromClass(vehClass)
 
-    if garage and garage.vehicleCategories and not TableContains(garage.vehicleCategories, vehCategories) then
+    if garage and garage.vehicleCategories and not lib.table.contains(garage.vehicleCategories, vehCategories) then
         QBCore.Functions.Notify(Lang:t("error.not_correct_type"), "error", 4500)
         return false
     end
@@ -672,7 +654,7 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
                 local vname = 'Vehicle does not exist'
                 if vehData then
                     local vehCategories = GetVehicleCategoriesFromClass(GetVehicleClassFromName(v.vehicle))
-                    if garage and garage.vehicleCategories and not TableContains(garage.vehicleCategories, vehCategories) then
+                    if garage and garage.vehicleCategories and not lib.table.contains(garage.vehicleCategories, vehCategories) then
                         goto continue
                     end
                     vname = vehData.name
@@ -766,10 +748,10 @@ RegisterNetEvent('qb-garages:client:TakeOutGarage', function(data, cb)
             if cb then cb(veh) end
         else
             QBCore.Functions.SpawnVehicle(vehicleModel, function(veh)
-                    QBCore.Functions.TriggerCallback('qb-garage:server:GetVehicleProperties', function(properties)
-                        UpdateSpawnedVehicle(veh, vehicle, heading, garage, properties)
-                        if cb then cb(veh) end
-                    end, vehicle.plate)
+                    local properties = lib.callback.await('qb-garage:server:GetVehicleProperties', false, vehicle.plate)
+
+                    UpdateSpawnedVehicle(veh, vehicle, heading, garage, properties)
+                    if cb then cb(veh) end
                 end, location, true,
                 garage.WarpPlayerIntoVehicle or Config.WarpPlayerIntoVehicle and garage.WarpPlayerIntoVehicle == nil)
         end

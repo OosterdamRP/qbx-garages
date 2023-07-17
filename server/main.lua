@@ -2,24 +2,6 @@ local QBCore = exports['qbx-core']:GetCoreObject()
 local OutsideVehicles = {}
 local VehicleSpawnerVehicles = {}
 
-local function TableContains(tab, val)
-    if type(val) == "table" then
-        for _, value in ipairs(tab) do
-            if TableContains(val, value) then
-                return true
-            end
-        end
-        return false
-    else
-        for _, value in ipairs(tab) do
-            if value == val then
-                return true
-            end
-        end
-    end
-    return false
-end
-
 QBCore.Functions.CreateCallback("qb-garage:server:GetOutsideVehicle", function(source, cb, plate)
     local src = source
     local pData = QBCore.Functions.GetPlayer(src)
@@ -173,11 +155,11 @@ QBCore.Functions.CreateCallback("qb-garage:server:GetGarageVehicles", function(s
             local tosend = {}
             if result[1] then
                 if type(category) == 'table' then
-                    if TableContains(category, { 'car' }) then
+                    if lib.table.contains(category, { 'car' }) then
                         category = 'car'
-                    elseif TableContains(category, { 'plane', 'helicopter' }) then
+                    elseif lib.table.contains(category, { 'plane', 'helicopter' }) then
                         category = 'air'
-                    elseif TableContains(category, 'boat') then
+                    elseif lib.table.contains(category, 'boat') then
                         category = 'sea'
                     end
                 end
@@ -210,7 +192,7 @@ QBCore.Functions.CreateCallback("qb-garage:server:GetGarageVehicles", function(s
         end)
     else --House give all cars in the garage, Job and Gang depend of config
         local shared = ''
-        if not TableContains(Config.SharedJobGarages, garage) and not (Config.SharedHouseGarage and garageType == "house") and not ((Config.SharedGangGarages == true or (type(Config.SharedGangGarages) == "table" and Config.SharedGangGarages[playerGang])) and garageType == "gang") then
+        if not lib.table.contains(Config.SharedJobGarages, garage) and not (Config.SharedHouseGarage and garageType == "house") and not ((Config.SharedGangGarages == true or (type(Config.SharedGangGarages) == "table" and Config.SharedGangGarages[playerGang])) and garageType == "gang") then
             shared = " AND citizenid = '" .. pData.PlayerData.citizenid .. "'"
         end
         MySQL.query('SELECT * FROM player_vehicles WHERE garage = ? AND state = ?' .. shared, { garage, 1 },
@@ -274,7 +256,7 @@ QBCore.Functions.CreateCallback("qb-garage:server:checkOwnership", function(sour
         end)
     else --Job garages only for cars that are owned by someone (for sharing and service) or only by player depending of config
         local shared = ''
-        if not TableContains(Config.SharedJobGarages, garage) then
+        if not lib.table.contains(Config.SharedJobGarages, garage) then
             shared = " AND citizenid = '" .. pData.PlayerData.citizenid .. "'"
         end
         MySQL.query('SELECT * FROM player_vehicles WHERE plate = ?' .. shared, { plate }, function(result)
@@ -287,13 +269,13 @@ QBCore.Functions.CreateCallback("qb-garage:server:checkOwnership", function(sour
     end
 end)
 
-QBCore.Functions.CreateCallback("qb-garage:server:GetVehicleProperties", function(source, cb, plate)
+lib.callback.register("qb-garage:server:GetVehicleProperties", function(source, plate)
     local properties = {}
     local result = MySQL.query.await('SELECT mods FROM player_vehicles WHERE plate = ?', { plate })
     if result[1] then
         properties = json.decode(result[1].mods)
     end
-    cb(properties)
+    return properties
 end)
 
 RegisterNetEvent('qb-garage:server:updateVehicle',
