@@ -443,7 +443,6 @@ local function GetRandomPublicGarage()
     end
 end
 
-
 -- Command to restore lost cars (garage: 'None' or something similar)
 QBCore.Commands.Add("restorelostcars",
     "Restores cars that were parked in a grage that no longer exists in the config or is invalid (name change or removed).",
@@ -477,7 +476,6 @@ QBCore.Commands.Add("restorelostcars",
             end)
         end
     end, Config.RestoreCommandPermissionLevel)
-
 
 if Config.EnableTrackVehicleByPlateCommand then
     QBCore.Commands.Add(Config.TrackVehicleByPlateCommand, 'Track vehicle', { { name = 'plate', help = 'Plate' } }, true,

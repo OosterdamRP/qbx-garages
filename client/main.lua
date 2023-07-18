@@ -401,7 +401,6 @@ local function UpdateRadialMenu(garagename)
     end
 end
 
-
 local function RegisterHousePoly(house)
     if GaragePoly[house] then return end
     local coords = Config.HouseGarages[house].takeVehicle
@@ -888,7 +887,6 @@ RegisterNetEvent('QBCore:Client:OnJobUpdate', function(job)
 end)
 
 -- Threads
-
 CreateThread(function()
     for _, garage in pairs(Config.Garages) do
         if garage.showBlip then
