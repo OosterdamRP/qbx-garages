@@ -444,42 +444,63 @@ local function GetRandomPublicGarage()
 end
 
 -- Command to restore lost cars (garage: 'None' or something similar)
-QBCore.Commands.Add("restorelostcars",
-    "Restores cars that were parked in a grage that no longer exists in the config or is invalid (name change or removed).",
-    { { name = "destination_garage", help = "(Optional) Garage where the cars are being sent to." } }, false,
-    function(source, args)
-        local src = source
-        if next(Config.Garages) ~= nil then
-            local destinationGarage = args[1] and args[1] or GetRandomPublicGarage()
-            if Config.Garages[destinationGarage] == nil then
-                TriggerClientEvent('ox_lib:notify', src, { description = 'Invalid garage name provided', type = 'error' })
-                return
-            end
+lib.addCommand('restorelostcars', {
+    help       =
+    'Restores cars that were parked in a grage that no longer exists in the config or is invalid (name change or removed).',
+    params     = {
+        {
+            name     = 'destination_garage',
+            help     = '(Optional) Garage where the cars are being sent to.',
+            optional = true
+        }
+    },
+    restricted = Config.RestoreCommandPermissionLevel,
+}, function(source, args)
+    local src = source
+    if next(Config.Garages) ~= nil then
+        local destinationGarage = args[1] and args[1] or GetRandomPublicGarage()
+        if Config.Garages[destinationGarage] == nil then
+            TriggerClientEvent('ox_lib:notify', src, { description = 'Invalid garage name provided', type = 'error' })
+            return
+        end
 
-            local invalidGarages = {}
-            MySQL.query('SELECT garage FROM player_vehicles', function(result)
-                if result[1] then
-                    for _, v in ipairs(result) do
-                        if Config.Garages[v.garage] == nil then
-                            if v.garage then
-                                invalidGarages[v.garage] = true
-                            end
+        local invalidGarages = {}
+        MySQL.query('SELECT garage FROM player_vehicles', function(result)
+            if result[1] then
+                for _, v in ipairs(result) do
+                    if Config.Garages[v.garage] == nil then
+                        if v.garage then
+                            invalidGarages[v.garage] = true
                         end
                     end
-                    for garage, _ in pairs(invalidGarages) do
-                        MySQL.update('UPDATE player_vehicles set garage = ? WHERE garage = ?',
-                            { destinationGarage, garage })
-                    end
-                    MySQL.update('UPDATE player_vehicles set garage = ? WHERE garage IS NULL OR garage = \'\'',
-                        { destinationGarage })
                 end
-            end)
-        end
-    end, Config.RestoreCommandPermissionLevel)
+                for garage, _ in pairs(invalidGarages) do
+                    MySQL.update('UPDATE player_vehicles set garage = ? WHERE garage = ?',
+                        { destinationGarage, garage })
+                end
+                MySQL.update('UPDATE player_vehicles set garage = ? WHERE garage IS NULL OR garage = \'\'',
+                    { destinationGarage })
+            end
+        end)
+    end
+end)
 
-if Config.EnableTrackVehicleByPlateCommand then
-    QBCore.Commands.Add(Config.TrackVehicleByPlateCommand, 'Track vehicle', { { name = 'plate', help = 'Plate' } }, true,
-        function(source, args)
-            TriggerClientEvent('qb-garages:client:TrackVehicleByPlate', source, args[1])
-        end, Config.TrackVehicleByPlateCommandPermissionLevel)
+if Config.TrackVehicleByPlateCommand then
+    lib.addCommand(Config.TrackVehicleByPlateCommand, {
+        help       = 'Track vehicle',
+        params     = {
+            {
+                name     = 'plate',
+                help     = 'Plate',
+                optional = true
+            }
+        },
+        restricted = Config.TrackVehicleByPlateCommandPermissionLevel,
+    }, function(source, args)
+        local src = source
+        if args then
+            TriggerClientEvent('qb-garages:client:TrackVehicleByPlate', src, args[1])
+        end
+        TriggerClientEvent('ox_lib:notify', src, { description = 'Commands need argument', type = 'error' })
+    end)
 end
