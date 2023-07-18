@@ -59,8 +59,8 @@ QBCore.Functions.CreateCallback("qb-garages:server:GetVehicleLocation", function
     end
 end)
 
-QBCore.Functions.CreateCallback("qb-garage:server:CheckSpawnedVehicle", function(source, cb, plate)
-    cb(VehicleSpawnerVehicles[plate] ~= nil and VehicleSpawnerVehicles[plate])
+lib.callback.register("qb-garage:server:checkspawnedvehicle", function(source, plate)
+    return VehicleSpawnerVehicles[plate] ~= nil and VehicleSpawnerVehicles[plate]
 end)
 
 RegisterNetEvent("qb-garage:server:UpdateSpawnedVehicle", function(plate, value)
@@ -217,8 +217,6 @@ QBCore.Functions.CreateCallback("qb-garage:server:GetGarageVehicles", function(s
     end
 end)
 
-
-
 QBCore.Functions.CreateCallback("qb-garage:server:checkOwnership", function(source, cb, plate, garageType, garage, gang)
     local src = source
     local pData = QBCore.Functions.GetPlayer(src)
@@ -353,7 +351,7 @@ RegisterNetEvent('qb-garage:server:PayDepotPrice', function(data)
             elseif bankBalance >= depotPrice then
                 Player.Functions.RemoveMoney("bank", depotPrice, "paid-depot")
             else
-                TriggerClientEvent('QBCore:Notify', src, Lang:t("error.not_enough"), 'error')
+                TriggerClientEvent('ox_lib:notify', src, { description = Lang:t("error.not_enough"), type = 'error' })
             end
         end
     end)
@@ -455,7 +453,7 @@ QBCore.Commands.Add("restorelostcars",
         if next(Config.Garages) ~= nil then
             local destinationGarage = args[1] and args[1] or GetRandomPublicGarage()
             if Config.Garages[destinationGarage] == nil then
-                TriggerClientEvent('QBCore:Notify', src, 'Invalid garage name provided', 'error', 4500)
+                TriggerClientEvent('ox_lib:notify', src, { description = 'Invalid garage name provided', type = 'error' })
                 return
             end
 
