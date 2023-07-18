@@ -57,9 +57,11 @@ Config = Config or {}
 -- NEW ---
 -- There is a new clientside export called 'TrackVehicleByPlate' that can be used to track vehicles by plate, this is useful for other scripts that want to track vehicles by plate (e.g. exports['qb-garages']:TrackVehicleByPlate(plate))
 -- And the clientside event 'qb-garages:client:TrackVehicleByPlate'(e.g. TriggerEvent('qb-garages:client:TrackVehicleByPlate', plate))
-Config.TrackVehicleByPlateCommand                = false --Options (command name(string) or false) Allow players to track their vehicles by plate using /trackvehicle <plate>
+Config.TrackVehicleByPlateCommandEnable          = true
+Config.TrackVehicleByPlateCommand                =
+'trackvehicle' --Options (command name(string) or false) Allow players to track their vehicles by plate using /trackvehicle <plate>
 Config.TrackVehicleByPlateCommandPermissionLevel =
-'god'                                                    -- Permission level required to use /trackvehicle <plate>, false for anyone / everyone
+'god'          -- Permission level required to use /trackvehicle <plate>, false for anyone / everyone
 
 -- NEW --
 

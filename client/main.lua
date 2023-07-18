@@ -13,12 +13,37 @@ local GarageZones        = {}
 
 -- helper functions
 function TrackVehicleByPlate(plate)
-    QBCore.Functions.TriggerCallback('qb-garages:server:GetVehicleLocation', function(coords)
-        SetNewWaypoint(coords.x, coords.y)
-    end, plate)
+    local coords = lib.callback.await('qb-garages:server:GetVehicleLocation', false, plate)
+
+    if coords then
+        if not IsWaypointActive() then -- Check if waypoints already setted up or not
+            SetNewWaypoint(coords.x, coords.y)
+            lib.notify({
+                id          = 'invalid_plate',
+                description = 'Waypoint has been set, check your map',
+                type        = 'success'
+            })
+        else
+            lib.notify({
+                id          = 'waypoint_pointed',
+                description = 'Waypoint already pointed, check your map',
+                type        = 'warning'
+            })
+        end
+    else
+        lib.notify({
+            id          = 'location_pinned',
+            description = 'Plate is invalid',
+            type        = 'error'
+        })
+    end
 end
 
 exports("TrackVehicleByPlate", TrackVehicleByPlate)
+
+RegisterNetEvent('qb-garages:client:TrackVehicleByPlate', function(plate)
+    TrackVehicleByPlate(plate)
+end)
 
 local function IsStringNilOrEmpty(s)
     return s == nil or s == ''
@@ -635,93 +660,94 @@ end
 
 -- Events
 RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
-    local type = data.type
-    local garageId = data.garageId
-    local garage = data.garage
-    local header = data.header
+    local type          = data.type
+    local garageId      = data.garageId
+    local garage        = data.garage
+    local header        = data.header
     local superCategory = data.superCategory
-    QBCore.Functions.TriggerCallback("qb-garage:server:GetGarageVehicles", function(result)
-        if result == nil then
-            lib.notify({ description = Lang:t("error.no_vehicles"), type = 'error', duration = 5000 })
-        else
-            MenuGarageOptions = {}
-            result = result and result or {}
-            for _, v in pairs(result) do
-                local enginePercent = math.round(v.engine / 10, 0)
-                local bodyPercent = math.round(v.body / 10, 0)
-                local currentFuel = v.fuel
-                local vehData = QBCore.Shared.Vehicles[v.vehicle]
-                local vname = 'Vehicle does not exist'
-                if vehData then
-                    local vehCategories = GetVehicleCategoriesFromClass(GetVehicleClassFromName(v.vehicle))
-                    if garage and garage.vehicleCategories and not lib.table.contains(garage.vehicleCategories, vehCategories) then
-                        goto continue
-                    end
-                    vname = vehData.name
-                end
+    local result        = lib.callback.await('qb-garage:server:GetGarageVehicles', false, garageId, type, superCategory)
 
-                if v.state == 0 then
-                    v.state = Lang:t("status.out")
-                elseif v.state == 1 then
-                    v.state = Lang:t("status.garaged")
-                elseif v.state == 2 then
-                    v.state = Lang:t("status.impound")
-                end
+    if result == nil then
+        lib.notify({ id = 'no_vehicles', description = Lang:t("error.no_vehicles"), type = 'error', duration = 5000 })
+    else
+        MenuGarageOptions = {}
+        result = result and result or {}
+        for _, v in pairs(result) do
+            local enginePercent = math.round(v.engine / 10, 0)
+            local bodyPercent = math.round(v.body / 10, 0)
+            local currentFuel = v.fuel
+            local vehData = QBCore.Shared.Vehicles[v.vehicle]
+            local vname = 'Vehicle does not exist'
 
-                if type == "depot" then
-                    MenuGarageOptions[#MenuGarageOptions + 1] = {
-                        title = Lang:t('menu.header.depot', { value = vname, value2 = v.depotprice }),
-                        description = Lang:t('menu.text.depot',
-                            { value = v.plate, value2 = currentFuel, value3 = enginePercent, value4 = bodyPercent }),
-                        metadata = {
-                            [Lang:t('menu.metadata.plate')] = v.plate,
-                            [Lang:t('menu.metadata.fuel')] = currentFuel,
-                            [Lang:t('menu.metadata.engine')] = enginePercent,
-                            [Lang:t('menu.metadata.body')] = bodyPercent,
-                        },
-                        event = "qb-garages:client:TakeOutDepot",
-                        args = {
-                            vehicle = v,
-                            vehicleModel = v.vehicle,
-                            type = type,
-                            garage = garage,
-                        }
-                    }
-                else
-                    MenuGarageOptions[#MenuGarageOptions + 1] = {
-                        title = Lang:t('menu.header.garage', { value = vname, value2 = v.plate }),
-                        description = Lang:t('menu.text.garage', { value = v.state }),
-                        metadata = {
-                            [Lang:t('menu.metadata.plate')] = v.plate,
-                            [Lang:t('menu.metadata.fuel')] = currentFuel,
-                            [Lang:t('menu.metadata.engine')] = enginePercent,
-                            [Lang:t('menu.metadata.body')] = bodyPercent,
-                        },
-                        event = "qb-garages:client:TakeOutGarage",
-                        args = {
-                            vehicle = v,
-                            vehicleModel = v.vehicle,
-                            type = type,
-                            garage = garage,
-                            superCategory = superCategory,
-                        }
-                    }
+            if vehData then
+                local vehCategories = GetVehicleCategoriesFromClass(GetVehicleClassFromName(v.vehicle))
+                if garage and garage.vehicleCategories and not lib.table.contains(garage.vehicleCategories, vehCategories) then
+                    goto continue
                 end
-                ::continue::
+                vname = vehData.name
             end
-            lib.registerContext({ id = 'context_garage_carinfo', title = header, options = MenuGarageOptions })
-            lib.showContext('context_garage_carinfo')
+
+            if v.state == 0 then
+                v.state = Lang:t("status.out")
+            elseif v.state == 1 then
+                v.state = Lang:t("status.garaged")
+            elseif v.state == 2 then
+                v.state = Lang:t("status.impound")
+            end
+
+            if type == "depot" then
+                MenuGarageOptions[#MenuGarageOptions + 1] = {
+                    title       = Lang:t('menu.header.depot', { value = vname, value2 = v.depotprice }),
+                    description = Lang:t('menu.text.depot', { value = v.plate }),
+                    colorScheme = 'red',
+                    metadata    = {
+                        { label = Lang:t('menu.metadata.fuel'), value = currentFuel, progress = currentFuel },
+                        { label = Lang:t('menu.metadata.body'), value = bodyPercent, progress = bodyPercent },
+                        { label = Lang:t('menu.metadata.body'), value = bodyPercent, progress = bodyPercent }
+                    },
+                    event       = "qb-garages:client:TakeOutDepot",
+                    args        = {
+                        vehicle      = v,
+                        vehicleModel = v.vehicle,
+                        type         = type,
+                        garage       = garage,
+                    }
+                }
+            else
+                MenuGarageOptions[#MenuGarageOptions + 1] = {
+                    title       = Lang:t('menu.header.garage', { value = vname, value2 = v.plate }),
+                    description = Lang:t('menu.text.garage', { value = v.state }),
+                    colorScheme = 'red',
+                    metadata    = {
+                        { label = Lang:t('menu.metadata.plate'), value = v.plate },
+                        { label = Lang:t('menu.metadata.fuel'),  value = currentFuel, progress = currentFuel },
+                        { label = Lang:t('menu.metadata.body'),  value = bodyPercent, progress = bodyPercent },
+                        { label = Lang:t('menu.metadata.body'),  value = bodyPercent, progress = bodyPercent }
+                    },
+                    event       = "qb-garages:client:TakeOutGarage",
+                    args        = {
+                        vehicle       = v,
+                        vehicleModel  = v.vehicle,
+                        type          = type,
+                        garage        = garage,
+                        superCategory = superCategory,
+                    }
+                }
+            end
+            ::continue::
         end
-    end, garageId, type, superCategory)
+        lib.registerContext({ id = 'context_garage_carinfo', title = header, options = MenuGarageOptions })
+        lib.showContext('context_garage_carinfo')
+    end
 end)
 
 RegisterNetEvent('qb-garages:client:TakeOutGarage', function(data, cb)
-    local garageType = data.type
-    local vehicleModel = data.vehicleModel
-    local vehicle = data.vehicle
-    local garage = data.garage
-    local spawnDistance = garage.SpawnDistance and garage.SpawnDistance or Config.SpawnDistance
-    local parkingSpots = garage.ParkingSpots or {}
+    local garageType        = data.type
+    local vehicleModel      = data.vehicleModel
+    local vehicle           = data.vehicle
+    local garage            = data.garage
+    local spawnDistance     = garage.SpawnDistance and garage.SpawnDistance or Config.SpawnDistance
+    local parkingSpots      = garage.ParkingSpots or {}
 
     local location, heading = GetSpawnLocationAndHeading(garage, garageType, parkingSpots, vehicle, spawnDistance)
     if garage.useVehicleSpawner then
@@ -816,10 +842,6 @@ RegisterNetEvent('qb-garages:client:TakeOutDepot', function(data)
     else
         lib.notify({ description = Lang:t("error.not_impound"), type = 'error', duration = 5000 })
     end
-end)
-
-RegisterNetEvent('qb-garages:client:TrackVehicleByPlate', function(plate)
-    TrackVehicleByPlate(plate)
 end)
 
 RegisterNetEvent('qb-garages:client:OpenHouseGarage', function()

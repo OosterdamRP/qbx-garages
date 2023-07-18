@@ -19,40 +19,40 @@ QBCore.Functions.CreateCallback("qb-garage:server:GetOutsideVehicle", function(s
         end)
 end)
 
-QBCore.Functions.CreateCallback("qb-garages:server:GetVehicleLocation", function(source, cb, plate)
-    local src = source
+lib.callback.register("qb-garages:server:GetVehicleLocation", function(_, plate)
     local vehicles = GetAllVehicles()
-    for _, vehicle in pairs(vehicles) do
-        local pl = GetVehicleNumberPlateText(vehicle)
+    for _, veh in pairs(vehicles) do
+        local pl = GetVehicleNumberPlateText(veh)
         if pl == plate then
-            cb(GetEntityCoords(vehicle))
-            return
+            return GetEntityCoords(veh)
         end
     end
+
     local result = MySQL.Sync.fetchAll('SELECT * FROM player_vehicles WHERE plate = ?', { plate })
     local veh = result[1]
+
     if veh then
         if Config.StoreParkinglotAccuratly and veh.parkingspot then
             local location = json.decode(veh.parkingspot)
-            cb(vector3(location.x, location.y, location.z))
+            return vector3(location.x, location.y, location.z)
         else
             local garageName = veh and veh.garage
             local garage = Config.Garages[garageName]
             if garage and garage.blipcoords then
-                cb(garage.blipcoords)
+                return garage.blipcoords
             elseif garage and garage.Zone and garage.Zone.Shape and garage.Zone.Shape[1] then
-                cb(vector3(garage.Zone.Shape[1].x, garage.Zone.Shape[1].y, garage.Zone.minZ))
+                return vector3(garage.Zone.Shape[1].x, garage.Zone.Shape[1].y, garage.Zone.minZ)
             else
                 local result = MySQL.query.await('SELECT * FROM houselocations WHERE name = ?', { garageName })
                 if result and result[1] then
                     local coords = json.decode(result[1].garage)
                     if coords then
-                        cb(vector3(coords.x, coords.y, coords.z))
+                        return vector3(coords.x, coords.y, coords.z)
                     else
-                        cb(nil)
+                        return nil
                     end
                 else
-                    cb(nil)
+                    return nil
                 end
             end
         end
@@ -125,10 +125,10 @@ local function GetVehicleByPlate(plate)
     return nil
 end
 
-QBCore.Functions.CreateCallback("qb-garage:server:GetGarageVehicles", function(source, cb, garage, garageType, category)
-    local src = source
-    local pData = QBCore.Functions.GetPlayer(src)
+lib.callback.register("qb-garage:server:GetGarageVehicles", function(source, garage, garageType, category)
+    local pData = QBCore.Functions.GetPlayer(source)
     local playerGang = pData.PlayerData.gang.name;
+    local vehicles = {}
     if garageType == "public" then --Public garages give player cars in the garage only
         GetVehicles(pData.PlayerData.citizenid, garage, 1, function(result)
             local vehs = {}
@@ -145,9 +145,9 @@ QBCore.Functions.CreateCallback("qb-garage:server:GetGarageVehicles", function(s
                     end
                     vehs[#vehs + 1] = vehicle
                 end
-                cb(vehs)
+                vehicles = vehs
             else
-                cb(nil)
+                vehicles = nil
             end
         end)
     elseif garageType == "depot" then --Depot give player cars that are not in garage only
@@ -185,9 +185,9 @@ QBCore.Functions.CreateCallback("qb-garage:server:GetGarageVehicles", function(s
                     end
                     ::skip::
                 end
-                cb(tosend)
+                vehicles = tosend
             else
-                cb(nil)
+                vehicles = nil
             end
         end)
     else --House give all cars in the garage, Job and Gang depend of config
@@ -209,12 +209,13 @@ QBCore.Functions.CreateCallback("qb-garage:server:GetGarageVehicles", function(s
                         end
                         vehs[#vehs + 1] = vehicle
                     end
-                    cb(vehs)
+                    vehicles = vehs
                 else
-                    cb(nil)
+                    vehicles = nil
                 end
             end)
     end
+    return vehicles
 end)
 
 QBCore.Functions.CreateCallback("qb-garage:server:checkOwnership", function(source, cb, plate, garageType, garage, gang)
@@ -458,7 +459,7 @@ lib.addCommand('restorelostcars', {
 }, function(source, args)
     local src = source
     if next(Config.Garages) ~= nil then
-        local destinationGarage = args[1] and args[1] or GetRandomPublicGarage()
+        local destinationGarage = args.destination_garage and args.destination_garage or GetRandomPublicGarage()
         if Config.Garages[destinationGarage] == nil then
             TriggerClientEvent('ox_lib:notify', src, { description = 'Invalid garage name provided', type = 'error' })
             return
@@ -485,22 +486,18 @@ lib.addCommand('restorelostcars', {
     end
 end)
 
-if Config.TrackVehicleByPlateCommand then
+if Config.TrackVehicleByPlateCommandEnable then
     lib.addCommand(Config.TrackVehicleByPlateCommand, {
         help       = 'Track vehicle',
-        params     = {
-            {
-                name     = 'plate',
-                help     = 'Plate',
-                optional = true
-            }
-        },
         restricted = Config.TrackVehicleByPlateCommandPermissionLevel,
+        params     = {
+            { name = 'plate', type = 'string', help = 'Plate', optional = true }
+        },
     }, function(source, args)
-        local src = source
-        if args then
-            TriggerClientEvent('qb-garages:client:TrackVehicleByPlate', src, args[1])
+        if args.plate then
+            TriggerClientEvent('qb-garages:client:TrackVehicleByPlate', source, args.plate)
+        else
+            TriggerClientEvent('ox_lib:notify', source, { id = 'cmd_args', description = 'Plate Needed', type = 'error' })
         end
-        TriggerClientEvent('ox_lib:notify', src, { description = 'Commands need argument', type = 'error' })
     end)
 end
