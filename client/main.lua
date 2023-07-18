@@ -145,7 +145,6 @@ local function ClearMenu()
 end
 
 -- Functions
-
 local function ApplyVehicleDamage(currentVehicle, veh)
     local engine = veh.engine + 0.0
     local body = veh.body + 0.0
@@ -199,10 +198,6 @@ local function GetCarDamage(vehicle)
         damage.doors[i] = { damaged = IsVehicleDoorDamaged(vehicle, i) }
     end
     return damage
-end
-
-local function Round(num, numDecimalPlaces)
-    return tonumber(string.format("%." .. (numDecimalPlaces or 0) .. "f", num))
 end
 
 local function ExitAndDeleteVehicle(vehicle)
@@ -653,8 +648,8 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
             MenuGarageOptions = {}
             result = result and result or {}
             for _, v in pairs(result) do
-                local enginePercent = Round(v.engine / 10, 0)
-                local bodyPercent = Round(v.body / 10, 0)
+                local enginePercent = math.round(v.engine / 10, 0)
+                local bodyPercent = math.round(v.body / 10, 0)
                 local currentFuel = v.fuel
                 local vehData = QBCore.Shared.Vehicles[v.vehicle]
                 local vname = 'Vehicle does not exist'
