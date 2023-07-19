@@ -2,21 +2,20 @@ local QBCore = exports['qbx-core']:GetCoreObject()
 local OutsideVehicles = {}
 local VehicleSpawnerVehicles = {}
 
-QBCore.Functions.CreateCallback("qb-garage:server:GetOutsideVehicle", function(source, cb, plate)
-    local src = source
-    local pData = QBCore.Functions.GetPlayer(src)
-    if not OutsideVehicles[plate] then
-        cb(nil)
-        return
+lib.callback.register("qb-garage:server:GetOutsideVehicle", function(source, plate)
+    local pData = QBCore.Functions.GetPlayer(source)
+    if OutsideVehicles[plate] then
+        local result = MySQL.query.await('SELECT * FROM player_vehicles WHERE citizenid = ? and plate = ?',
+            { pData.PlayerData.citizenid, plate })
+
+        if result[1] then
+            return result[1]
+        else
+            return nil
+        end
+    else
+        return nil
     end
-    MySQL.query('SELECT * FROM player_vehicles WHERE citizenid = ? and plate = ?', { pData.PlayerData.citizenid, plate },
-        function(result)
-            if result[1] then
-                cb(result[1])
-            else
-                cb(nil)
-            end
-        end)
 end)
 
 lib.callback.register("qb-garages:server:GetVehicleLocation", function(_, plate)
@@ -218,53 +217,58 @@ lib.callback.register("qb-garage:server:GetGarageVehicles", function(source, gar
     return vehicles
 end)
 
-QBCore.Functions.CreateCallback("qb-garage:server:checkOwnership", function(source, cb, plate, garageType, garage, gang)
-    local src = source
-    local pData = QBCore.Functions.GetPlayer(src)
+lib.callback.register("qb-garage:server:checkOwnership", function(source, plate, garageType, garage, gang)
+    local pData = QBCore.Functions.GetPlayer(source)
     if garageType == "public" then --Public garages only for player cars
         local addSQLForAllowParkingAnyonesVehicle = ""
+
         if not Config.AllowParkingAnyonesVehicle then
             addSQLForAllowParkingAnyonesVehicle = " AND citizenid = '" .. pData.PlayerData.citizenid .. "' "
         end
-        MySQL.query('SELECT * FROM player_vehicles WHERE plate = ? ' .. addSQLForAllowParkingAnyonesVehicle, { plate },
-            function(result)
-                if result[1] then
-                    cb(true)
-                else
-                    cb(false)
-                end
-            end)
+
+        local result = MySQL.query.await(
+            'SELECT * FROM player_vehicles WHERE plate = ? ' .. addSQLForAllowParkingAnyonesVehicle, {
+                plate
+            })
+
+        if result[1] then
+            return true
+        else
+            return false
+        end
     elseif garageType == "house" then --House garages only for player cars that have keys of the house
-        MySQL.query('SELECT * FROM player_vehicles WHERE plate = ?', { plate }, function(result)
-            if result[1] then
-                cb(true)
-            else
-                cb(false)
-            end
-        end)
+        local result = MySQL.query.await('SELECT * FROM player_vehicles WHERE plate = ?', { plate })
+
+        if result[1] then
+            return true
+        else
+            return false
+        end
     elseif garageType == "gang" then --Gang garages only for gang members cars (for sharing)
-        MySQL.query('SELECT * FROM player_vehicles WHERE plate = ?', { plate }, function(result)
-            if result[1] then
-                --Check if found owner is part of the gang
-                local Player = QBCore.Functions.GetPlayer(source)
-                local playerGang = Player.PlayerData.gang.name
-                cb(playerGang == gang)
-            else
-                cb(false)
-            end
-        end)
+        local result = MySQL.query.await('SELECT * FROM player_vehicles WHERE plate = ?', { plate })
+
+        if result[1] then
+            --Check if found owner is part of the gang
+            local Player = QBCore.Functions.GetPlayer(source)
+            local playerGang = Player.PlayerData.gang.name
+            return playerGang == gang
+        else
+            return false
+        end
     else --Job garages only for cars that are owned by someone (for sharing and service) or only by player depending of config
         local shared = ''
+
         if not lib.table.contains(Config.SharedJobGarages, garage) then
             shared = " AND citizenid = '" .. pData.PlayerData.citizenid .. "'"
         end
-        MySQL.query('SELECT * FROM player_vehicles WHERE plate = ?' .. shared, { plate }, function(result)
-            if result[1] then
-                cb(true)
-            else
-                cb(false)
-            end
-        end)
+
+        local result = MySQL.query('SELECT * FROM player_vehicles WHERE plate = ?' .. shared, { plate })
+
+        if result[1] then
+            return true
+        else
+            return false
+        end
     end
 end)
 
@@ -315,13 +319,13 @@ RegisterNetEvent('qb-garages:server:UpdateOutsideVehicles', function(Vehicles)
     OutsideVehicles[citizenId] = Vehicles
 end)
 
-QBCore.Functions.CreateCallback("qb-garage:server:GetOutsideVehicles", function(source, cb)
+lib.callback.register("qb-garage:server:GetOutsideVehicles", function(source, cb)
     local ply = QBCore.Functions.GetPlayer(source)
     local citizenId = ply.PlayerData.citizenid
     if OutsideVehicles[citizenId] and next(OutsideVehicles[citizenId]) then
-        cb(OutsideVehicles[citizenId])
+        return OutsideVehicles[citizenId]
     else
-        cb({})
+        return {}
     end
 end)
 
@@ -367,73 +371,72 @@ end)
 
 --External Calls
 --Call from qb-vehiclesales
-QBCore.Functions.CreateCallback("qb-garage:server:checkVehicleOwner", function(source, cb, plate)
-    local src = source
-    local pData = QBCore.Functions.GetPlayer(src)
-    MySQL.query('SELECT * FROM player_vehicles WHERE plate = ? AND citizenid = ?', { plate, pData.PlayerData.citizenid },
-        function(result)
-            if result[1] then
-                cb(true, result[1].balance)
-            else
-                cb(false)
-            end
-        end)
+lib.callback.register("qb-garage:server:checkVehicleOwner", function(source, plate)
+    local pData = QBCore.Functions.GetPlayer(source)
+    local result = MySQL.query.await('SELECT * FROM player_vehicles WHERE plate = ? AND citizenid = ?',
+        { plate, pData.PlayerData.citizenid })
+
+    if result[1] then
+        return true, result[1].balance
+    else
+        return false
+    end
 end)
 
 --Call from qb-phone
-QBCore.Functions.CreateCallback('qb-garage:server:GetPlayerVehicles', function(source, cb)
+lib.callback.register('qb-garage:server:GetPlayerVehicles', function(source)
     local Player = QBCore.Functions.GetPlayer(source)
     local Vehicles = {}
 
-    MySQL.query('SELECT * FROM player_vehicles WHERE citizenid = ?', { Player.PlayerData.citizenid }, function(result)
-        if result[1] then
-            for k, v in pairs(result) do
-                local VehicleData = QBCore.Shared.Vehicles[v.vehicle]
-                if not VehicleData then goto continue end
-                local VehicleGarage = Lang:t("error.no_garage")
-                if v.garage ~= nil then
-                    if Config.Garages[v.garage] ~= nil then
-                        VehicleGarage = Config.Garages[v.garage].label
-                    elseif Config.HouseGarages[v.garage] then
-                        VehicleGarage = Config.HouseGarages[v.garage].label
-                    end
-                end
+    local result = MySQL.query.await('SELECT * FROM player_vehicles WHERE citizenid = ?', { Player.PlayerData.citizenid })
 
-                if v.state == 0 then
-                    v.state = Lang:t("status.out")
-                elseif v.state == 1 then
-                    v.state = Lang:t("status.garaged")
-                elseif v.state == 2 then
-                    v.state = Lang:t("status.impound")
+    if result[1] then
+        for k, v in pairs(result) do
+            local VehicleData = QBCore.Shared.Vehicles[v.vehicle]
+            if not VehicleData then goto continue end
+            local VehicleGarage = Lang:t("error.no_garage")
+            if v.garage ~= nil then
+                if Config.Garages[v.garage] ~= nil then
+                    VehicleGarage = Config.Garages[v.garage].label
+                elseif Config.HouseGarages[v.garage] then
+                    VehicleGarage = Config.HouseGarages[v.garage].label
                 end
-
-                local fullname
-                if VehicleData["brand"] ~= nil then
-                    fullname = VehicleData["brand"] .. " " .. VehicleData["name"]
-                else
-                    fullname = VehicleData["name"]
-                end
-                local spot = json.decode(v.parkingspot)
-                Vehicles[#Vehicles + 1] = {
-                    fullname = fullname,
-                    brand = VehicleData["brand"],
-                    model = VehicleData["name"],
-                    plate = v.plate,
-                    garage = VehicleGarage,
-                    state = v.state,
-                    fuel = v.fuel,
-                    engine = v.engine,
-                    body = v.body,
-                    parkingspot = spot and vector3(spot.x, spot.y, spot.z) or nil,
-                    damage = json.decode(v.damage)
-                }
-                ::continue::
             end
-            cb(Vehicles)
-        else
-            cb(nil)
+
+            if v.state == 0 then
+                v.state = Lang:t("status.out")
+            elseif v.state == 1 then
+                v.state = Lang:t("status.garaged")
+            elseif v.state == 2 then
+                v.state = Lang:t("status.impound")
+            end
+
+            local fullname
+            if VehicleData["brand"] ~= nil then
+                fullname = VehicleData["brand"] .. " " .. VehicleData["name"]
+            else
+                fullname = VehicleData["name"]
+            end
+            local spot = json.decode(v.parkingspot)
+            Vehicles[#Vehicles + 1] = {
+                fullname = fullname,
+                brand = VehicleData["brand"],
+                model = VehicleData["name"],
+                plate = v.plate,
+                garage = VehicleGarage,
+                state = v.state,
+                fuel = v.fuel,
+                engine = v.engine,
+                body = v.body,
+                parkingspot = spot and vector3(spot.x, spot.y, spot.z) or nil,
+                damage = json.decode(v.damage)
+            }
+            ::continue::
         end
-    end)
+        return Vehicles
+    else
+        return nil
+    end
 end)
 
 local function GetRandomPublicGarage()

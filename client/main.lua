@@ -353,7 +353,7 @@ local function ParkVehicle(veh, garageName, vehLocation)
     local type = garage and garage.type or 'house'
     local gang = PlayerGang.name;
     local job = PlayerJob.name;
-    QBCore.Functions.TriggerCallback('qb-garage:server:checkOwnership', function(owned)
+    lib.callback('qb-garage:server:checkOwnership', false, function(owned)
         if owned then
             ParkOwnedVehicle(veh, garageName, vehLocation, plate)
         elseif garage and garage.useVehicleSpawner and IsAuthorizedToAccessGarage(garageName) then
@@ -874,12 +874,12 @@ end)
 
 AddEventHandler('QBCore:Client:OnPlayerLoaded', function()
     PlayerData = QBCore.Functions.GetPlayerData()
-    if not PlayerData then return end
     PlayerGang = PlayerData.gang
-    PlayerJob = PlayerData.job
-    QBCore.Functions.TriggerCallback('qb-garage:server:GetOutsideVehicles', function(outsideVehicles)
-        OutsideVehicles = outsideVehicles
-    end)
+    PlayerJob  = PlayerData.job
+
+    if not PlayerData then return end
+
+    OutsideVehicles = lib.callback.await('qb-garage:server:GetOutsideVehicles', false)
 end)
 
 AddEventHandler('onResourceStart', function(resourceName)
