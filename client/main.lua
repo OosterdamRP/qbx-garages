@@ -308,8 +308,8 @@ local function CanParkVehicle(veh, garageName, vehLocation)
 end
 
 local function ParkOwnedVehicle(veh, garageName, vehLocation, plate)
-    local bodyDamage = math.ceil(GetVehicleBodyHealth(veh))
-    local engineDamage = math.ceil(GetVehicleEngineHealth(veh))
+    local bodyDamage = math.ceil(lib.getVehicleProperties(veh).bodyHealth)
+    local engineDamage = math.ceil(lib.getVehicleProperties(veh).engineHealth)
 
     local totalFuel = 0
 
@@ -322,7 +322,7 @@ local function ParkOwnedVehicle(veh, garageName, vehLocation, plate)
     local canPark, closestLocation = CanParkVehicle(veh, garageName, vehLocation)
     local closestVec3 = closestLocation and vector3(closestLocation.x, closestLocation.y, closestLocation.z) or nil
     if not canPark and not garageName.useVehicleSpawner then return end
-    local properties = QBCore.Functions.GetVehicleProperties(veh)
+    local properties = lib.getVehicleProperties(veh)
     TriggerServerEvent('qb-garage:server:updateVehicle', 1, totalFuel, engineDamage, bodyDamage, properties, plate,
         garageName, Config.StoreParkinglotAccuratly and closestVec3 or nil,
         Config.StoreDamageAccuratly and GetCarDamage(veh) or nil)
@@ -347,7 +347,7 @@ function ParkVehicleSpawnerVehicle(veh, garageName, vehLocation, plate)
 end
 
 local function ParkVehicle(veh, garageName, vehLocation)
-    local plate = QBCore.Functions.GetPlate(veh)
+    local plate = GetPlate(veh)
     local garageName = garageName or (CurrentGarage or CurrentHouseGarage)
     local garage = Config.Garages[garageName]
     local type = garage and garage.type or 'house'
@@ -582,7 +582,7 @@ function GetSpawnLocationAndHeading(garage, garageType, parkingSpots, vehicle, s
 end
 
 local function UpdateVehicleSpawnerSpawnedVehicle(veh, garage, heading, cb)
-    local plate = QBCore.Functions.GetPlate(veh)
+    local plate = GetPlate(veh)
     if Config.FuelScript then
         exports[Config.FuelScript]:SetFuel(veh, 100)
     else
@@ -620,7 +620,7 @@ local function SpawnVehicleSpawnerVehicle(vehicleModel, location, heading, cb)
 end
 
 function UpdateSpawnedVehicle(spawnedVehicle, vehicleInfo, heading, garage, properties)
-    local plate = QBCore.Functions.GetPlate(spawnedVehicle)
+    local plate = GetPlate(spawnedVehicle)
     if garage.useVehicleSpawner then
         ClearMenu()
         if plate then
@@ -644,7 +644,7 @@ function UpdateSpawnedVehicle(spawnedVehicle, vehicleInfo, heading, garage, prop
         else
             exports['LegacyFuel']:SetFuel(spawnedVehicle, vehicleInfo.fuel) -- Don't change this. Change it in the  Defaults to legacy fuel if not set in the config
         end
-        QBCore.Functions.SetVehicleProperties(spawnedVehicle, properties)
+        lib.setVehicleProperties(spawnedVehicle, properties)
         SetVehicleNumberPlateText(spawnedVehicle, vehicleInfo.plate)
         SetAsMissionEntity(spawnedVehicle)
         ApplyVehicleDamage(spawnedVehicle, vehicleInfo)
