@@ -654,7 +654,6 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
                     description = Lang:t('menu.text.garage', { value = v.state }),
                     colorScheme = 'red',
                     metadata    = {
-                        -- { label = Lang:t('menu.metadata.plate'),  value = v.plate },
                         { label = Lang:t('menu.metadata.fuel'),   value = currentFuel,   progress = v.fuel },
                         { label = Lang:t('menu.metadata.engine'), value = enginePercent, progress = v.engine },
                         { label = Lang:t('menu.metadata.body'),   value = bodyPercent,   progress = v.body },
