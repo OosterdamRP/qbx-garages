@@ -71,10 +71,8 @@ lib.callback.register('qb-garage:server:spawnvehicle', function(source, vehInfo,
     local netId = SpawnVehicle(source, vehInfo.vehicle, coords, warp)
     local veh = NetworkGetEntityFromNetworkId(netId)
 
-    print(tostring(veh))
-
     if not veh or not NetworkGetNetworkIdFromEntity(veh) then
-        print('ISSUE HERE', veh, NetworkGetNetworkIdFromEntity(veh))
+        DebugPrint('ISSUE HERE', veh, NetworkGetNetworkIdFromEntity(veh))
     end
 
     local vehProps = {}
@@ -283,28 +281,15 @@ lib.callback.register("qb-garage:server:GetVehicleProperties", function(source, 
 end)
 
 RegisterNetEvent('qb-garage:server:updateVehicle',
-    function(state, fuel, engine, body, properties, plate, garage, location, damage)
+    function(state, fuel, engine, body, tank, properties, plate, garage, location)
         if location and type(location) == 'vector3' then
-            if Config.StoreDamageAccuratly then
-                MySQL.update(
-                    'UPDATE player_vehicles SET state = ?, garage = ?, fuel = ?, engine = ?, body = ?, mods = ?, parkingspot = ?, damage = ? WHERE plate = ?',
-                    { state, garage, fuel, engine, body, json.encode(properties), json.encode(location),
-                        json.encode(damage), plate })
-            else
-                MySQL.update(
-                    'UPDATE player_vehicles SET state = ?, garage = ?, fuel = ?, engine = ?, body = ?, mods = ?, parkingspot = ? WHERE plate = ?',
-                    { state, garage, fuel, engine, body, json.encode(properties), json.encode(location), plate })
-            end
+            MySQL.update(
+                'UPDATE player_vehicles SET state = ?, garage = ?, fuel = ?, engine = ?, body = ?, tank = ?, mods = ?, parkingspot = ? WHERE plate = ?',
+                { state, garage, fuel, engine, body, tank, json.encode(properties), json.encode(location), plate })
         else
-            if Config.StoreDamageAccuratly then
-                MySQL.update(
-                    'UPDATE player_vehicles SET state = ?, garage = ?, fuel = ?, engine = ?, body = ?, mods = ?, damage = ? WHERE plate = ?',
-                    { state, garage, fuel, engine, body, json.encode(properties), json.encode(damage), plate })
-            else
-                MySQL.update(
-                    'UPDATE player_vehicles SET state = ?, garage = ?, fuel = ?, engine = ?, body = ?, mods = ? WHERE plate = ?',
-                    { state, garage, fuel, engine, body, json.encode(properties), plate })
-            end
+            MySQL.update(
+                'UPDATE player_vehicles SET state = ?, garage = ?, fuel = ?, engine = ?, body = ?, tank = ?, mods = ? WHERE plate = ?',
+                { state, garage, fuel, engine, body, tank, json.encode(properties), plate })
         end
     end)
 

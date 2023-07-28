@@ -46,10 +46,11 @@ local Translations = {
         },
 
         metadata = {
-            plate  = "Plate",
-            fuel   = "Fuel",
-            engine = "Engine",
-            body   = "Body",
+            plate  = "Plate Number",
+            fuel   = "Fuel Health",
+            engine = "Engine Health",
+            body   = "Body Health",
+            tank   = "Tank Health",
         }
     },
 
