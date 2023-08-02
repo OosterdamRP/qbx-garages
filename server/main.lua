@@ -381,6 +381,7 @@ lib.callback.register('qb-garage:server:GetPlayerVehicles', function(source)
             local VehicleData = QBCore.Shared.Vehicles[v.vehicle]
             if not VehicleData then goto continue end
             local VehicleGarage = Lang:t("error.no_garage")
+
             if v.garage ~= nil then
                 if Config.Garages[v.garage] ~= nil then
                     VehicleGarage = Config.Garages[v.garage].label
@@ -403,6 +404,7 @@ lib.callback.register('qb-garage:server:GetPlayerVehicles', function(source)
             else
                 fullname = VehicleData["name"]
             end
+
             local spot = json.decode(v.parkingspot)
             Vehicles[#Vehicles + 1] = {
                 fullname = fullname,
