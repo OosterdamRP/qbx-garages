@@ -238,7 +238,11 @@ lib.callback.register("qb-garage:server:checkOwnership", function(source, plate,
         return result[1] and true or false
     elseif garageType == "house" then     --House garages only for player cars that have keys of the house
         local result = MySQL.query.await('SELECT * FROM player_vehicles WHERE plate = ?', {plate})
-        return result[1] and true or false
+        if result[1] then
+            exports['ps-housing']:IsOwner(src, garage)
+        else
+            return false
+        end
     elseif garageType == "gang" then        --Gang garages only for gang members cars (for sharing)
         local result = MySQL.query.await('SELECT * FROM player_vehicles WHERE plate = ?', {plate})
         if result[1] then
