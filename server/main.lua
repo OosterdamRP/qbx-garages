@@ -1,3 +1,4 @@
+---@diagnostic disable: param-type-mismatch
 local QBCore = exports['qbx-core']:GetCoreObject()
 local OutsideVehicles = {}
 local VehicleSpawnerVehicles = {}
@@ -72,7 +73,7 @@ lib.callback.register('qb-garage:server:spawnvehicle', function(source, vehInfo,
     local veh = NetworkGetEntityFromNetworkId(netId)
 
     if not veh or not NetworkGetNetworkIdFromEntity(veh) then
-        DebugPrint('ISSUE HERE', veh, NetworkGetNetworkIdFromEntity(veh))
+        DebugPrint('ISSUE HERE' .. veh .. NetworkGetNetworkIdFromEntity(veh))
     end
 
     local vehProps = {}
@@ -329,13 +330,11 @@ RegisterNetEvent('qb-garage:server:PayDepotPrice', function(data)
     local Player = QBCore.Functions.GetPlayer(src)
     local cashBalance = Player.PlayerData.money["cash"]
     local bankBalance = Player.PlayerData.money["bank"]
-
-
     local vehicle = data.vehicle
-
     MySQL.query('SELECT * FROM player_vehicles WHERE plate = ?', { vehicle.plate }, function(result)
         if result[1] then
             local vehicle = result[1]
+            if not vehicle then return end
             local depotPrice = vehicle.depotprice ~= 0 and vehicle.depotprice or Config.DepotPrice
             if cashBalance >= depotPrice then
                 Player.Functions.RemoveMoney("cash", depotPrice, "paid-depot")
