@@ -1,25 +1,6 @@
 local OutsideVehicles = {}
 local VehicleSpawnerVehicles = {}
 
-local function TableContains (tab, val)
-    if type(val) == "table" then
-        for _, value in ipairs(tab) do
-            if TableContains(val, value) then
-                return true
-            end
-        end
-        return false
-    else
-        for _, value in ipairs(tab) do
-            if value == val then
-                return true
-            end
-        end
-    end
-    return false
-end
-
-
 lib.callback.register("qb-garage:server:GetOutsideVehicle", function(source, plate)
     local pData = QBCore.Functions.GetPlayer(source)
     if not OutsideVehicles[plate] then return nil end
@@ -164,11 +145,11 @@ lib.callback.register("qb-garage:server:GetGarageVehicles", function(source, gar
             local tosend = {}
             if result[1] then
                 if type(category) == 'table' then
-                    if TableContains(category, {'car'}) then
+                    if lib.table.contains(category, {'car'}) then
                         category = 'car'
-                    elseif TableContains(category, {'plane', 'helicopter'}) then
+                    elseif lib.table.contains(category, {'plane', 'helicopter'}) then
                         category = 'air'
-                    elseif TableContains(category, 'boat') then
+                    elseif lib.table.contains(category, 'boat') then
                         category = 'sea'
                     end
                 end
@@ -202,7 +183,7 @@ lib.callback.register("qb-garage:server:GetGarageVehicles", function(source, gar
         return tosend
     else --House give all cars in the garage, Job and Gang depend of config
         local shared = ''
-        if not TableContains(Config.SharedJobGarages, garage) and not (Config.SharedHouseGarage and garageType == "house") and not ((Config.SharedGangGarages == true or (type(Config.SharedGangGarages) == "table" and Config.SharedGangGarages[playerGang])) and garageType == "gang") then
+        if not lib.table.contains(Config.SharedJobGarages, garage) and not (Config.SharedHouseGarage and garageType == "house") and not ((Config.SharedGangGarages == true or (type(Config.SharedGangGarages) == "table" and Config.SharedGangGarages[playerGang])) and garageType == "gang") then
             shared = " AND citizenid = '" .. pData.PlayerData.citizenid .. "'"
         end
 
@@ -249,11 +230,11 @@ lib.callback.register("qb-garage:server:checkOwnership", function(source, plate,
         end
     else                            --Job garages only for cars that are owned by someone (for sharing and service) or only by player depending of config
         local shared = ''
-        if not TableContains(Config.SharedJobGarages, garage) then
+        if not lib.table.contains(Config.SharedJobGarages, garage) then
             shared = " AND citizenid = '"..pData.PlayerData.citizenid.."'"
         end
-        local result = MySQL.query('SELECT * FROM player_vehicles WHERE plate = ?'..shared, {plate})
-        return result?[1] and true or false
+        local result = MySQL.query.await('SELECT * FROM player_vehicles WHERE plate = ?'..shared, {plate})
+        return result[1] and true or false
     end
 end)
 
@@ -330,7 +311,7 @@ RegisterNetEvent('qb-garage:server:PayDepotPrice', function(data)
             elseif bankBalance >= depotPrice then
                 Player.Functions.RemoveMoney("bank", depotPrice, "paid-depot")
             else
-                TriggerClientEvent('QBCore:Notify', src, Lang:t("error.not_enough"), 'error')
+                TriggerClientEvent('ox_lib:notify', src, { description = Lang:t("error.not_enough"), type = 'error' })
             end
         end
     end)
@@ -433,7 +414,7 @@ lib.addCommand("restorelostcars", {
     if next(Config.Garages) ~= nil then
         local destinationGarage = args.destination_garage and args.destination_garage or GetRandomPublicGarage()
         if Config.Garages[destinationGarage] == nil then
-            TriggerClientEvent('QBCore:Notify', src, 'Invalid garage name provided', 'error', 4500)
+            TriggerClientEvent('ox_lib:notify', src, { description = 'Invalid garage name provided', type = 'error' })
             return
         end
 

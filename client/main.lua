@@ -10,31 +10,37 @@ local MenuItemId2 = nil
 local VehicleClassMap = {}
 local GarageZones = {}
 
--- helper functions
-local function TableContains (tab, val)
-    if type(val) == "table" then -- checks if atleast one the values in val is contained in tab
-        for _, value in ipairs(tab) do
-            if TableContains(val, value) then
-                return true
-            end
-        end
-        return false
-    else
-        for _, value in ipairs(tab) do
-            if value == val then
-                return true
-            end
-        end
-    end
-    return false
-end
-
 function TrackVehicleByPlate(plate)
     local coords = lib.callback.await('qb-garages:server:GetVehicleLocation', false, plate)
-    SetNewWaypoint(coords.x, coords.y)
+    if coords then
+        if not IsWaypointActive() then -- Check if waypoints already setted up or not
+            SetNewWaypoint(coords.x, coords.y)
+            lib.notify({
+                id          = 'invalid_plate',
+                description = 'Waypoint has been set, check your map',
+                type        = 'success'
+            })
+        else
+            lib.notify({
+                id          = 'waypoint_pointed',
+                description = 'Waypoint already pointed, check your map',
+                type        = 'warning'
+            })
+        end
+    else
+        lib.notify({
+            id          = 'location_pinned',
+            description = 'Plate is invalid',
+            type        = 'error'
+        })
+    end
 end
 
 exports("TrackVehicleByPlate", TrackVehicleByPlate)
+
+RegisterNetEvent('qb-garages:client:TrackVehicleByPlate', function(plate)
+    TrackVehicleByPlate(plate)
+end)
 
 local function IsStringNilOrEmpty(s)
     return s == nil or s == ''
@@ -42,11 +48,11 @@ end
 
 local function GetSuperCategoryFromCategories(categories)
     local superCategory = 'car'
-    if TableContains(categories, {'car'}) then
+    if lib.table.contains(categories, {'car'}) then
         superCategory = 'car'
-    elseif TableContains(categories, {'plane', 'helicopter'}) then
+    elseif lib.table.contains(categories, {'plane', 'helicopter'}) then
         superCategory = 'air'
-    elseif TableContains(categories, 'boat') then
+    elseif lib.table.contains(categories, 'boat') then
         superCategory = 'sea'
     end
     return superCategory
@@ -253,18 +259,18 @@ local function IsAuthorizedToAccessGarage(garageName)
         if type(garage.job) == "string" and not IsStringNilOrEmpty(garage.job) then
             return PlayerJob.name == garage.job
         elseif type(garage.job) == "table" then
-            return TableContains(garage.job, PlayerJob.name)
+            return lib.table.contains(garage.job, PlayerJob.name)
         else
-            QBCore.Functions.Notify('job not defined on garage', 'error', 7500)
+            lib.notify({ description = 'job not defined on garage', type = 'error', duration = 7500 })
             return false
         end
     elseif garage.type == 'gang' then
         if type(garage.gang) == "string" and  not IsStringNilOrEmpty(garage.gang) then
             return garage.gang == PlayerGang.name
         elseif type(garage.gang) =="table" then
-            return TableContains(garage.gang, PlayerGang.name)
+            return lib.table.contains(garage.gang, PlayerGang.name)
         else
-            QBCore.Functions.Notify('gang not defined on garage', 'error', 7500)
+            lib.notify({ description = "gang not defined on garage", type = 'error',duration = 7500 })
             return false
         end
     end
@@ -278,8 +284,8 @@ local function CanParkVehicle(veh, garageName, vehLocation)
     local vehClass = GetVehicleClass(veh)
     local vehCategories = GetVehicleCategoriesFromClass(vehClass)
 
-    if garage and garage.vehicleCategories and not TableContains(garage.vehicleCategories, vehCategories) then
-        QBCore.Functions.Notify(Lang:t("error.not_correct_type"), "error", 4500)
+    if garage and garage.vehicleCategories and not lib.table.contains(garage.vehicleCategories, vehCategories) then
+        lib.notify({ description = Lang:t("error.not_correct_type"), type = 'error', duration = 4500 })
         return false
     end
 
@@ -287,7 +293,7 @@ local function CanParkVehicle(veh, garageName, vehLocation)
     if next(parkingSpots) then
         local _, closestDistance, closestLocation = GetClosestLocation(parkingSpots, vehLocation)
         if closestDistance >= parkingDistance then
-            QBCore.Functions.Notify(Lang:t("error.too_far_away"), "error", 4500)
+            lib.notify({ description = Lang:t("error.too_far_away"), type = 'error', duration = 4500 })
             return false
         else
             return true, closestLocation
@@ -319,7 +325,7 @@ local function ParkOwnedVehicle(veh, garageName, vehLocation, plate)
         OutsideVehicles[plate] = nil
         TriggerServerEvent('qb-garages:server:UpdateOutsideVehicles', OutsideVehicles)
     end
-    QBCore.Functions.Notify(Lang:t("success.vehicle_parked"), "success", 4500)
+    lib.notify({ description = Lang:t("success.vehicle_parked"), type = 'success', duration = 4500 })
 end
 
 function ParkVehicleSpawnerVehicle(veh, garageName, vehLocation, plate)
@@ -330,7 +336,7 @@ function ParkVehicleSpawnerVehicle(veh, garageName, vehLocation, plate)
         TriggerServerEvent("qb-garage:server:UpdateSpawnedVehicle", plate, nil)
         ExitAndDeleteVehicle(veh)
     elseif not result then
-        QBCore.Functions.Notify(Lang:t("error.not_owned"), "error", 3500)
+        lib.notify({ description = Lang:t("error.not_owned"), type = 'error', duration = 3500 })
     end
 end
 
@@ -348,7 +354,7 @@ local function ParkVehicle(veh, garageName, vehLocation)
     elseif garage and garage.useVehicleSpawner and IsAuthorizedToAccessGarage(garageName) then
        ParkVehicleSpawnerVehicle(veh, vehLocation, vehLocation, plate)
     else
-        QBCore.Functions.Notify(Lang:t("error.not_owned"), "error", 3500)
+        lib.notify({ description = Lang:t("error.not_owned"), type = 'error', duration = 3500 })
     end
 end
 
@@ -450,9 +456,17 @@ local function JobMenuGarage(garageName)
 
     if not jobGarage then
         if garage.jobGarageIdentifier then
-            TriggerEvent('QBCore:Notify', string.format('Job garage with id %s not configured.', garage.jobGarageIdentifier), 'error', 5000)
+            TriggerEvent('ox_lib:notify', {
+                description = string.format('Job garage with id %s not configured.', garage.jobGarageIdentifier),
+                type = 'error',
+                duration = 5000
+            })
         else
-            TriggerEvent('QBCore:Notify', string.format("'jobGarageIdentifier' not defined on job garage %s ", garageName), 'error', 5000)
+            TriggerEvent('ox_lib:notify', {
+                description = string.format("'jobGarageIdentifier' not defined on job garage %s ", garageName),
+                type = 'error',
+                duration = 5000
+            })
         end
         return
     end
@@ -513,7 +527,7 @@ local function GetSpawnLocationAndHeading(garage, garageType, parkingSpots, vehi
             if Config.AllowSpawningFromAnywhere then
                 location = GetFreeSingleParkingSpot(freeParkingSpots, vehicle)
                 if location == nil then
-                    QBCore.Functions.Notify(Lang:t("error.all_occupied"), "error", 4500)
+                    lib.notify({ description = Lang:t("error.all_occupied"), type = 'error', duration = 4500 })
                 return end
                 heading = location.w
             else
@@ -525,14 +539,14 @@ local function GetSpawnLocationAndHeading(garage, garageType, parkingSpots, vehi
                 end
                 local dist = #(plyCoords - vector3(spot.x, spot.y, spot.z))
                 if Config.SpawnAtLastParkinglot and dist >= spawnDistance then
-                    QBCore.Functions.Notify(Lang:t("error.too_far_away"), "error", 4500)
+                    lib.notify({ description = Lang:t("error.too_far_away"), type = 'error', duration = 4500 })
                     return
                 elseif closestDistance >= spawnDistance then
-                    return QBCore.Functions.Notify(Lang:t("error.too_far_away"), "error", 4500)
+                    return lib.notify({ description = Lang:t("error.too_far_away"), type = 'error', duration = 4500 })
                 else
                     local veh, distance = QBCore.Functions.GetClosestVehicle(vector3(location.x,location.y, location.z))
                     if veh and distance <= 1.5 then
-                        return QBCore.Functions.Notify(Lang:t("error.occupied"), "error", 4500)
+                        return lib.notify({ description = Lang:t("error.occupied"), type = 'error', duration = 4500 })
                     end
                     heading = location.w
                 end
@@ -642,20 +656,20 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
 
     local result = lib.callback.await("qb-garage:server:GetGarageVehicles", false, garageId, garagetype, superCategory)
     if result == nil then
-        return QBCore.Functions.Notify(Lang:t("error.no_vehicles"), "error", 5000)
+        return lib.notify({ description = Lang:t("error.no_vehicles"), type = 'error', duration = 5000 })
     end
 
     MenuGarageOptions = {}
     result = result and result or {}
     for _, v in pairs(result) do
-        local enginePercent = Round(v.engine / 10, 0)
-        local bodyPercent = Round(v.body / 10, 0)
-        local currentFuel = v.fuel
+        local enginePercent = Round(v.engine / 10, 0) .. '%'
+        local bodyPercent = Round(v.body / 10, 0) .. '%'
+        local currentFuel = Round(v.fuel / 1, 0) .. '%'
         local vehData = QBCore.Shared.Vehicles[v.vehicle]
         local vname = 'Vehicle does not exist'
         if vehData then
             local vehCategories = GetVehicleCategoriesFromClass(GetVehicleClassFromName(v.vehicle))
-            if garage and garage.vehicleCategories and not TableContains(garage.vehicleCategories, vehCategories) then
+            if garage and garage.vehicleCategories and not lib.table.contains(garage.vehicleCategories, vehCategories) then
                 goto continue
             end
             vname = vehData.name
@@ -673,11 +687,12 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
             MenuGarageOptions[#MenuGarageOptions+1] = {
                 title = Lang:t('menu.header.depot', {value = vname, value2 = v.depotprice }),
                 description = Lang:t('menu.text.depot', {value = v.plate, value2 = currentFuel, value3 = enginePercent, value4 = bodyPercent}),
+                colorScheme = 'red',
                 metadata = {
-                    [Lang:t('menu.metadata.plate')] = v.plate,
-                    [Lang:t('menu.metadata.fuel')] = currentFuel,
-                    [Lang:t('menu.metadata.engine')] = enginePercent,
-                    [Lang:t('menu.metadata.body')] = bodyPercent,
+                    -- { label = Lang:t('menu.metadata.plate'),  value = v.plate },
+                    { label = Lang:t('menu.metadata.fuel'),   value = currentFuel,   progress = v.fuel },
+                    { label = Lang:t('menu.metadata.engine'), value = enginePercent, progress = v.engine },
+                    { label = Lang:t('menu.metadata.body'),   value = bodyPercent,   progress = v.body },
                 },
                 event = "qb-garages:client:TakeOutDepot",
                 args = {
@@ -691,11 +706,12 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
             MenuGarageOptions[#MenuGarageOptions+1] = {
                 title = Lang:t('menu.header.garage', {value = vname, value2 = v.plate}),
                 description = Lang:t('menu.text.garage', {value = v.state}),
+                colorScheme = 'red',
                 metadata = {
-                    [Lang:t('menu.metadata.plate')] = v.plate,
-                    [Lang:t('menu.metadata.fuel')] = currentFuel,
-                    [Lang:t('menu.metadata.engine')] = enginePercent,
-                    [Lang:t('menu.metadata.body')] = bodyPercent,
+                    -- { label = Lang:t('menu.metadata.plate'),  value = v.plate },
+                    { label = Lang:t('menu.metadata.fuel'),   value = currentFuel,   progress = v.fuel },
+                    { label = Lang:t('menu.metadata.engine'), value = enginePercent, progress = v.engine },
+                    { label = Lang:t('menu.metadata.body'),   value = bodyPercent,   progress = v.body },
                 },
                 event = "qb-garages:client:TakeOutGarage",
                 args = {
@@ -776,7 +792,7 @@ end)
 RegisterNetEvent('qb-garages:client:ParkLastVehicle', function(parkingName)
     local curVeh = GetLastDrivenVehicle(cache.ped)
     if not curVeh then
-        return QBCore.Functions.Notify(Lang:t('error.no_vehicle'), "error", 4500)
+        return lib.notify({ description = Lang:t("error.no_vehicle"), type = 'error', duration = 5000 })
     end
 
     local coords = GetEntityCoords(curVeh)
@@ -788,12 +804,12 @@ RegisterNetEvent('qb-garages:client:TakeOutDepot', function(data)
     -- check whether the vehicle is already spawned
     local vehExists = DoesEntityExist(OutsideVehicles[vehicle.plate]) or (not Config.SpawnVehiclesServerside and GetVehicleByPlate(vehicle.plate))
     if vehExists then
-        return QBCore.Functions.Notify(Lang:t('error.not_impound'), "error", 5000)
+        return lib.notify({ description = Lang:t("error.not_impound"), type = 'error', duration = 5000 })
     end
 
     local PlayerData = QBCore.Functions.GetPlayerData()
     if PlayerData?.money['cash'] <= vehicle.depotprice and PlayerData?.money['bank'] <= vehicle.depotprice then
-        return QBCore.Functions.Notify(Lang:t('error.not_enough'), "error", 5000)
+        return lib.notify({ description = Lang:t("error.not_enough"), type = 'error', duration = 5000 })
     end
 
     TriggerEvent("qb-garages:client:TakeOutGarage", data, function (veh)
