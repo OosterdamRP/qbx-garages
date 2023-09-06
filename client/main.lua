@@ -168,23 +168,25 @@ end
 -- Functions
 
 local function ApplyVehicleDamage(currentVehicle, veh)
-	local engine = veh.engine + 0.0
-	local body = veh.body + 0.0
+    local engine = veh.engine + 0.0
+    local body = veh.body + 0.0
+    local tyres, windows, doors
     local damage = veh.damage
+    local tank = veh.tank + 0.0
     if damage then
         if damage.tyres then
             for k, tyre in pairs(damage.tyres) do
                 if tyre.onRim then
-                    SetVehicleTyreBurst(currentVehicle, tonumber(k), tyre.onRim, 1000.0)
+                    tyres = tonumber(k)
                 elseif tyre.burst then
-                    SetVehicleTyreBurst(currentVehicle, tonumber(k), tyre.onRim, 990.0)
+                    tyres = tonumber(k)
                 end
             end
         end
         if damage.windows then
             for k, window in pairs(damage.windows) do
                 if window.smashed then
-                    SmashVehicleWindow(currentVehicle, tonumber(k))
+                    windows = tonumber(k)
                 end
             end
         end
@@ -192,59 +194,45 @@ local function ApplyVehicleDamage(currentVehicle, veh)
         if damage.doors then
             for k, door in pairs(damage.doors) do
                 if door.damaged then
-                    SetVehicleDoorBroken(currentVehicle, tonumber(k), true)
+                    doors = tonumber(k)
                 end
             end
         end
     end
 
-    SetVehicleEngineHealth(currentVehicle, engine)
-    SetVehicleBodyHealth(currentVehicle, body)
-end
-
-local function GetCarDamage(vehicle)
-    local damage = {windows = {}, tyres = {}, doors = {}}
-    local tyreIndexes = {0,1,2,3,4,5,45,47}
-
-    for _,i in pairs(tyreIndexes) do
-        damage.tyres[i] = {burst = IsVehicleTyreBurst(vehicle, i, false) == 1, onRim = IsVehicleTyreBurst(vehicle, i, true) == 1, health = GetTyreHealth(vehicle, i)}
-    end
-    for i=0,7 do
-        damage.windows[i] = {smashed = not IsVehicleWindowIntact(vehicle, i)}
-    end
-    for i=0,5 do
-        damage.doors[i] = {damaged = IsVehicleDoorDamaged(vehicle, i)}
-    end
-    return damage
-end
-
-local function Round(num, numDecimalPlaces)
-    return tonumber(string.format("%." .. (numDecimalPlaces or 0) .. "f", num))
+    lib.setVehicleProperties(currentVehicle, {
+        bodyHealth   = body,
+        engineHealth = engine,
+        tyres        = { tyres },
+        windows      = { windows },
+        doors        = { doors },
+        tankHealth   = tank,
+    })
 end
 
 local function ExitAndDeleteVehicle(vehicle)
     local garage = Config.Garages[CurrentGarage]
+    local props_ = lib.getVehicleProperties(vehicle)
+    if not props_ then return end
     local exitLocation = nil
     if garage and garage.ExitWarpLocations and next(garage.ExitWarpLocations) then
         _, _, exitLocation = GetClosestLocation(garage.ExitWarpLocations)
     end
     for i = -1, 5, 1 do
-        local ped = GetPedInVehicleSeat(vehicle, i)
-        if ped then
-            TaskLeaveVehicle(ped, vehicle, 0)
+        if cache.seat == i then
+            TaskLeaveVehicle(cache.ped, vehicle, 0)
             if exitLocation then
-                SetEntityCoords(ped, exitLocation.x, exitLocation.y, exitLocation.z)
+                SetEntityCoords(cache.ped, exitLocation.x, exitLocation.y, exitLocation.z, false, false, false, false)
             end
         end
     end
     SetVehicleDoorsLocked(vehicle, 2)
-    local plate = GetVehicleNumberPlateText(vehicle)
     Wait(1500)
-    QBCore.Functions.DeleteVehicle(vehicle)
+    DeleteVehicle(vehicle)
     RemoveRadialOptions()
     if Config.SpawnVehiclesServerside then
         Wait(1000)
-        TriggerServerEvent('qb-garages:server:parkVehicle', plate)
+        TriggerServerEvent('qb-garages:server:parkVehicle', props_.plate)
     end
 end
 
@@ -304,22 +292,21 @@ local function CanParkVehicle(veh, garageName, vehLocation)
 end
 
 local function ParkOwnedVehicle(veh, garageName, vehLocation, plate)
-    local bodyDamage = math.ceil(GetVehicleBodyHealth(veh))
-    local engineDamage = math.ceil(GetVehicleEngineHealth(veh))
+    local props_ = lib.getVehicleProperties(veh)
+    if not props_ then return end
 
-    local totalFuel = 0
+    local fuel = 0
 
     if Config.FuelScript then
-        totalFuel = exports[Config.FuelScript]:GetFuel(veh)
+        fuel = exports[Config.FuelScript]:GetFuel(veh)
     else
-        totalFuel = Entity(veh).state.fuel
+        fuel = Entity(veh).state.fuel
     end
 
     local canPark, closestLocation = CanParkVehicle(veh, garageName, vehLocation)
     local closestVec3 = closestLocation and vector3(closestLocation.x,closestLocation.y, closestLocation.z) or nil
     if not canPark and not garageName.useVehicleSpawner then return end
-    local properties = QBCore.Functions.GetVehicleProperties(veh)
-    TriggerServerEvent('qb-garage:server:updateVehicle', 1, totalFuel, engineDamage, bodyDamage, properties, plate, garageName, Config.StoreParkinglotAccuratly and closestVec3 or nil, Config.StoreDamageAccuratly and GetCarDamage(veh) or nil)
+    TriggerServerEvent('qb-garage:server:updateVehicle', 1, fuel, props_.engineHealth, props_.bodyHealth, props_.tankHealth, props_, plate, garageName, Config.StoreParkinglotAccuratly and closestVec3 or nil)
     ExitAndDeleteVehicle(veh)
     if plate then
         OutsideVehicles[plate] = nil
@@ -354,44 +341,51 @@ local function ParkVehicle(veh, garageName, vehLocation)
     elseif garage and garage.useVehicleSpawner and IsAuthorizedToAccessGarage(garageName) then
        ParkVehicleSpawnerVehicle(veh, vehLocation, vehLocation, plate)
     else
-        lib.notify({ description = Lang:t("error.not_owned"), type = 'error', duration = 3500 })
+        lib.notify({ id = 'not_owned', description = Lang:t("error.not_owned"), type = 'error' })
     end
 end
 
 local function AddRadialParkingOption()
-    local veh, dist =  QBCore.Functions.GetClosestVehicle()
-    if (veh and dist <= Config.VehicleParkDistance and Config.AllowParkingFromOutsideVehicle) or IsPedInAnyVehicle(cache.ped, false) then
-	if MenuItemId1 then return end
-	MenuItemId1 = exports['qbx-radialmenu']:AddOption({
-            id = 'put_up_vehicle',
-            title = 'Park Vehicle',
-            icon = 'square-parking',
-            type = 'client',
-            event = 'qb-garages:client:ParkVehicle',
+    if cache.vehicle and cache.seat == -1 then
+        if MenuItemId1 then return end
+        if MenuItemId2 then
+            exports['qbx-radialmenu']:RemoveOption(MenuItemId2)
+            MenuItemId2 = nil
+        end
+        MenuItemId1 = exports['qbx-radialmenu']:AddOption({
+            id          = 'put_up_vehicle',
+            title       = 'Park Vehicle',
+            icon        = 'square-parking',
+            type        = 'client',
+            event       = 'qb-garages:client:ParkVehicle',
             shouldClose = true
         }, MenuItemId1)
     end
-	if not IsPedInAnyVehicle(cache.ped, false) then
-		if MenuItemId2 then return end
-		MenuItemId2 = exports['qbx-radialmenu']:AddOption({
-			id = 'open_garage_menu',
-			title = 'Open Garage',
-			icon = 'warehouse',
-			type = 'client',
-			event = 'qb-garages:client:OpenMenu',
-			shouldClose = true
-		}, MenuItemId2)
-	end
+	if not cache.vehicle or not cache.seat then
+        if MenuItemId2 then return end
+        if MenuItemId1 then
+            exports['qbx-radialmenu']:RemoveOption(MenuItemId1)
+            MenuItemId1 = nil
+        end
+        MenuItemId2 = exports['qbx-radialmenu']:AddOption({
+            id          = 'open_garage_menu',
+            title       = 'Open Garage',
+            icon        = 'warehouse',
+            type        = 'client',
+            event       = 'qb-garages:client:OpenMenu',
+            shouldClose = true
+        }, MenuItemId2)
+    end
 end
 
 local function AddRadialImpoundOption()
 	if MenuItemId1 then return end
-	MenuItemId1 = exports['qbx-radialmenu']:AddOption({
-        id = 'open_garage_menu',
-        title = 'Open Impound Lot',
-        icon = 'warehouse',
-        type = 'client',
-        event = 'qb-garages:client:OpenMenu',
+    MenuItemId1 = exports['qbx-radialmenu']:AddOption({
+        id          = 'open_garage_menu',
+        title       = 'Open Impound Lot',
+        icon        = 'warehouse',
+        type        = 'client',
+        event       = 'qb-garages:client:OpenMenu',
         shouldClose = true
     }, MenuItemId1)
 end
@@ -411,10 +405,10 @@ local function UpdateRadialMenu(garagename)
         elseif garage.type == 'depot' then
             AddRadialImpoundOption()
         elseif IsAuthorizedToAccessGarage(CurrentGarage) then
-           AddRadialParkingOption()
+            AddRadialParkingOption()
         end
     elseif CurrentHouseGarage then
-       AddRadialParkingOption()
+        AddRadialParkingOption()
     else
         RemoveRadialOptions()
     end
@@ -426,17 +420,23 @@ local function RegisterHousePoly(house)
     if not coords or not coords.x then return end
     local pos = vector3(coords.x, coords.y, coords.z)
     GaragePoly[house] = lib.zones.box({
-        coords = pos,
-        size = vec3(7.5, 7.5, 5),
+        coords   = pos,
+        size     = vec3(7.5, 7.5, 5),
         rotation = coords.h or coords.w,
-        debug = false,
-        onEnter = function()
+        debug    = false,
+        onEnter  = function()
             CurrentHouseGarage = house
             UpdateRadialMenu()
-            exports['qbx-core']:DrawText(Config.HouseParkingDrawText, Config.DrawTextPosition)
+            lib.showTextUI(Config.HouseParkingDrawText, {
+                position  = Config.DrawTextPosition,
+                icon      = 'square-parking',
+                iconColor = '#0096FF'
+            })
         end,
-        onExit = function()
-            exports['qbx-core']:HideText()
+        onExit   = function()
+            if lib.isTextUIOpen() then
+                lib.hideTextUI()
+            end
             RemoveRadialOptions()
             CurrentHouseGarage = nil
         end
@@ -472,20 +472,20 @@ local function JobMenuGarage(garageName)
     end
 
     local vehicleMenu = {
-        id = 'qbx_jobVehicle_Menu',
-        title = jobGarage.label,
+        id      = 'qbx_jobVehicle_Menu',
+        title   = jobGarage.label,
         options = {}
     }
 
     local vehicles = jobGarage.vehicles[QBCore.Functions.GetPlayerData().job.grade.level]
     for veh, label in pairs(vehicles) do
         vehicleMenu[#vehicleMenu+1] = {
-            title = label,
+            title       = label,
             description = "",
-            event = "qb-garages:client:TakeOutGarage",
-            args = {
+            event       = "qb-garages:client:TakeOutGarage",
+            args        = {
                 vehicleModel = veh,
-                garage = garage
+                garage       = garage
             }
         }
     end
@@ -527,20 +527,20 @@ local function GetSpawnLocationAndHeading(garage, garageType, parkingSpots, vehi
             if Config.AllowSpawningFromAnywhere then
                 location = GetFreeSingleParkingSpot(freeParkingSpots, vehicle)
                 if location == nil then
-                    lib.notify({ description = Lang:t("error.all_occupied"), type = 'error', duration = 4500 })
-                return end
+                    return lib.notify({ description = Lang:t("error.all_occupied"), type = 'error', duration = 4500 })
+                end
                 heading = location.w
             else
                 _, closestDistance, location = GetClosestLocation(Config.SpawnAtFreeParkingSpot and freeParkingSpots or parkingSpots)
-                local plyCoords = GetEntityCoords(cache.ped, 0)
+                if not location then return end
+                local plyCoords = GetEntityCoords(cache.ped, false)
                 local spot = vector3(location.x, location.y, location.z)
                 if Config.SpawnAtLastParkinglot and vehicle and vehicle.parkingspot then
                     spot = vehicle.parkingspot
                 end
                 local dist = #(plyCoords - vector3(spot.x, spot.y, spot.z))
                 if Config.SpawnAtLastParkinglot and dist >= spawnDistance then
-                    lib.notify({ description = Lang:t("error.too_far_away"), type = 'error', duration = 4500 })
-                    return
+                    return lib.notify({ description = Lang:t("error.too_far_away"), type = 'error', duration = 4500 })
                 elseif closestDistance >= spawnDistance then
                     return lib.notify({ description = Lang:t("error.too_far_away"), type = 'error', duration = 4500 })
                 else
@@ -632,7 +632,8 @@ function UpdateSpawnedVehicle(spawnedVehicle, vehicleInfo, heading, garage, prop
             Entity(spawnedVehicle).state.fuel = vehicleInfo.fuel -- Don't change this. Change it in the  Defaults to ox fuel if not set in the config
         end
         QBCore.Functions.SetVehicleProperties(spawnedVehicle, properties)
-        SetVehicleNumberPlateText(spawnedVehicle, vehicleInfo.plate)
+        lib.setVehicleProperties(spawnedVehicle, properties)
+        lib.setVehicleProperties(spawnedVehicle, { plate = vehicleInfo.plate })
         SetAsMissionEntity(spawnedVehicle)
         ApplyVehicleDamage(spawnedVehicle, vehicleInfo)
         TriggerServerEvent('qb-garage:server:updateVehicleState', 0, vehicleInfo.plate, vehicleInfo.garage)
@@ -640,13 +641,12 @@ function UpdateSpawnedVehicle(spawnedVehicle, vehicleInfo, heading, garage, prop
     end
     SetEntityHeading(spawnedVehicle, heading)
     SetAsMissionEntity(spawnedVehicle)
-    if SpawnWithEngineRunning then
-        SetVehicleEngineOn(veh, true, false, true)
+    if Config.SpawnWithEngineRunning then
+        SetVehicleEngineOn(spawnedVehicle, true, true, false)
     end
 end
 
 -- Events
-
 RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
     local garagetype = data.type
     local garageId = data.garageId
@@ -656,17 +656,18 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
 
     local result = lib.callback.await("qb-garage:server:GetGarageVehicles", false, garageId, garagetype, superCategory)
     if result == nil then
-        return lib.notify({ description = Lang:t("error.no_vehicles"), type = 'error', duration = 5000 })
+        return lib.notify({ id = 'no_vehicles', description = Lang:t("error.no_vehicles"), type = 'error', duration = 5000 })
     end
 
     MenuGarageOptions = {}
     result = result and result or {}
     for _, v in pairs(result) do
-        local enginePercent = Round(v.engine / 10, 0) .. '%'
-        local bodyPercent = Round(v.body / 10, 0) .. '%'
-        local currentFuel = Round(v.fuel / 1, 0) .. '%'
+        local enginePercent = tostring(math.floor(v.engine / 10)) .. '%'
+        local bodyPercent = tostring(math.floor(v.body / 10)) .. '%'
+        local tankPercent = tostring(math.floor(v.tank / 10)) .. '%'
+        local currentFuel = tostring(math.floor(v.fuel)) .. '%'
         local vehData = QBCore.Shared.Vehicles[v.vehicle]
-        local vname = 'Vehicle does not exist'
+        local vname = 'Voertuig bestaat niet'
         if vehData then
             local vehCategories = GetVehicleCategoriesFromClass(GetVehicleClassFromName(v.vehicle))
             if garage and garage.vehicleCategories and not lib.table.contains(garage.vehicleCategories, vehCategories) then
@@ -691,8 +692,9 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
                 metadata = {
                     -- { label = Lang:t('menu.metadata.plate'),  value = v.plate },
                     { label = Lang:t('menu.metadata.fuel'),   value = currentFuel,   progress = v.fuel },
-                    { label = Lang:t('menu.metadata.engine'), value = enginePercent, progress = v.engine },
-                    { label = Lang:t('menu.metadata.body'),   value = bodyPercent,   progress = v.body },
+                    { label = Lang:t('menu.metadata.engine'), value = enginePercent, progress = v.engine / 10 },
+                    { label = Lang:t('menu.metadata.body'),   value = bodyPercent,   progress = v.body / 10 },
+                    { label = Lang:t('menu.metadata.tank'),   value = tankPercent,   progress = v.tank / 10 }
                 },
                 event = "qb-garages:client:TakeOutDepot",
                 args = {
@@ -710,15 +712,16 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
                 metadata = {
                     -- { label = Lang:t('menu.metadata.plate'),  value = v.plate },
                     { label = Lang:t('menu.metadata.fuel'),   value = currentFuel,   progress = v.fuel },
-                    { label = Lang:t('menu.metadata.engine'), value = enginePercent, progress = v.engine },
-                    { label = Lang:t('menu.metadata.body'),   value = bodyPercent,   progress = v.body },
+                    { label = Lang:t('menu.metadata.engine'), value = enginePercent, progress = v.engine / 10 },
+                    { label = Lang:t('menu.metadata.body'),   value = bodyPercent,   progress = v.body / 10 },
+                    { label = Lang:t('menu.metadata.tank'),   value = tankPercent,   progress = v.tank / 10 }
                 },
                 event = "qb-garages:client:TakeOutGarage",
                 args = {
-                    vehicle = v,
-                    vehicleModel = v.vehicle,
-                    type = garagetype,
-                    garage = garage,
+                    vehicle       = v,
+                    vehicleModel  = v.vehicle,
+                    type          = garagetype,
+                    garage        = garage,
                     superCategory = superCategory,
                 }
             }
@@ -774,18 +777,17 @@ RegisterNetEvent('qb-garages:client:OpenMenu', function()
 end)
 
 RegisterNetEvent('qb-garages:client:ParkVehicle', function()
-    local curVeh = GetVehiclePedIsIn(cache.ped)
     local canPark = true
-    if Config.AllowParkingFromOutsideVehicle and curVeh == 0 then
+    if Config.AllowParkingFromOutsideVehicle and cache.vehicle == 0 then
         local closestVeh, dist = QBCore.Functions.GetClosestVehicle()
         if dist <= Config.VehicleParkDistance then
-            curVeh = closestVeh
+            cache.vehicle = closestVeh
         end
     else
-	canPark = GetPedInVehicleSeat(curVeh, -1) == cache.ped
+	canPark = GetPedInVehicleSeat(cache.vehicle, -1) == cache.ped
     end
-    if curVeh ~= 0 and canPark then
-        ParkVehicle(curVeh)
+    if cache.vehicle ~= 0 and canPark then
+        ParkVehicle(cache.vehicle)
     end
 end)
 
@@ -804,12 +806,12 @@ RegisterNetEvent('qb-garages:client:TakeOutDepot', function(data)
     -- check whether the vehicle is already spawned
     local vehExists = DoesEntityExist(OutsideVehicles[vehicle.plate]) or (not Config.SpawnVehiclesServerside and GetVehicleByPlate(vehicle.plate))
     if vehExists then
-        return lib.notify({ description = Lang:t("error.not_impound"), type = 'error', duration = 5000 })
+        return QBCore.Functions.Notify(Lang:t('error.not_impound'), "error", 5000)
     end
 
     local PlayerData = QBCore.Functions.GetPlayerData()
     if PlayerData?.money['cash'] <= vehicle.depotprice and PlayerData?.money['bank'] <= vehicle.depotprice then
-        return lib.notify({ description = Lang:t("error.not_enough"), type = 'error', duration = 5000 })
+        return QBCore.Functions.Notify(Lang:t('error.not_enough'), "error", 5000)
     end
 
     TriggerEvent("qb-garages:client:TakeOutGarage", data, function (veh)
@@ -923,7 +925,11 @@ CreateThread(function()
                 onEnter = function()
                     if IsAuthorizedToAccessGarage(garageName) then
                         UpdateRadialMenu(garageName)
-                        exports['qbx-core']:DrawText(Garages[CurrentGarage]['drawText'], Config.DrawTextPosition)
+                        lib.showTextUI(Config.ParkingDrawText, {
+                            position  = Config.DrawTextPosition,
+                            icon      = 'square-parking',
+                            iconColor = '#0096FF'
+                        })
                     end
                 end,
                 inside = function (self)
