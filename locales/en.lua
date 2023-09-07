@@ -47,6 +47,7 @@ local Translations = {
             engine = "Engine",
             body = "Body",
             tank   = "Tank Health",
+            mileage = "Milage",
         }
     },
     status = {

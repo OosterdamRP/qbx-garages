@@ -1,5 +1,6 @@
 local OutsideVehicles = {}
 local VehicleSpawnerVehicles = {}
+local MileageCache = {}
 
 lib.callback.register("qb-garage:server:GetOutsideVehicle", function(source, plate)
     local pData = QBCore.Functions.GetPlayer(source)
@@ -442,3 +443,72 @@ if Config.EnableTrackVehicleByPlateCommand then
         TriggerClientEvent('qb-garages:client:TrackVehicleByPlate', source, args.plate)
     end)
 end
+
+-- Kilometerstand
+CreateThread(function()
+    while true do
+        if GetTableCount(MileageCache) > 0 then
+            SaveMileage()
+        end
+        Wait(5*1000)
+    end
+end)
+
+function GetTableCount(table)
+    local count = 0
+    for k,v in pairs(table) do
+        count = count + 1
+    end
+    return count
+end
+
+function GetVehicleMileage(plate)
+    local result = MySQL.Sync.fetchAll("SELECT mileage FROM player_vehicles WHERE plate = @plate", {
+        ["@plate"] = plate
+    })
+    if result[1] then
+        return tonumber(result[1].mileage)
+    else
+        return 0.00 -- Default mileage if no record is found
+    end
+end
+
+function SaveMileage()
+    local count = 0
+    local requests = {}
+    for k,v in pairs(MileageCache) do
+        requests[#requests + 1] = MySQL.update("UPDATE player_vehicles SET mileage = mileage + "..v.count.." WHERE player_vehicles.plate = '"..k.."'")
+        count = count + 1
+    end
+
+    if count == GetTableCount(MileageCache) and count > 0 then
+        MySQL.Async.transaction(requests, {}, function(success)
+            if Config.Debug then
+                if success then
+                    print("^2SAVED: ^7"..count.." AUTO(S) KILOMETERSTAND.")
+                else
+                    print("^1ERROR: ^7KON "..count.." AUTO(S) KILOMETERSTAND NIET OPSLAAN.")
+                end
+                MileageCache = {}
+                count = 0
+                requests = {}
+            end
+        end)
+    end
+end
+
+RegisterNetEvent(KilometerStand.prefix .. KilometerStand.AddMileageEvent)
+AddEventHandler(KilometerStand.prefix .. KilometerStand.AddMileageEvent, function(plate, km)
+    if MileageCache[plate] == nil then
+        MileageCache[plate] = {}
+        MileageCache[plate].count = 0
+    end
+
+    MileageCache[plate].count = MileageCache[plate].count + km
+
+    -- Debug
+    if Config.Debug then
+        Wait(3000)
+        print("^2KILOMETERS: ^7Added "..km.." km to ["..plate.."] - TOTALE KILOMETERSTAND: "..GetVehicleMileage(plate))
+    end
+end)

@@ -9,6 +9,9 @@ local MenuItemId1 = nil
 local MenuItemId2 = nil
 local VehicleClassMap = {}
 local GarageZones = {}
+-- Kilometerstand
+local inCar = false
+local kmToAdd = 0
 
 function TrackVehicleByPlate(plate)
     local coords = lib.callback.await('qb-garages:server:GetVehicleLocation', false, plate)
@@ -647,6 +650,55 @@ function UpdateSpawnedVehicle(spawnedVehicle, vehicleInfo, heading, garage, prop
 end
 
 -- Events
+
+-- Kilometerstand
+CreateThread(function()
+    while true do
+        local inCar = IsPlayerInCar(cache.ped)
+        if inCar then
+            local pVeh = GetVehiclePedIsIn(cache.ped, false)
+            local plate = GetVehicleNumberPlateText(pVeh)
+            local LastPos = GetEntityCoords(pVeh)
+            while inCar do
+                inCar = IsPlayerInCar(cache.ped)
+                local newPos = GetEntityCoords(pVeh)
+                local km = #(LastPos - newPos)
+                if km > 0.1 then
+                    kmToAdd = kmToAdd + km
+                end
+                LastPos = newPos
+                Wait(500)
+            end
+            TriggerServerEvent(KilometerStand.prefix .. KilometerStand.AddMileageEvent, plate, Round(kmToAdd / 1000, 3))
+            kmToAdd = 0
+        end
+        Wait(500)
+    end
+end)
+
+
+function IsPlayerInCar()
+    if IsPedInAnyVehicle(cache.ped, false) then
+        if GetPedInVehicleSeat(GetVehiclePedIsIn(cache.ped, false), -1) == cache.ped then
+            return true
+        else
+            return false
+        end
+    else
+        return false
+    end
+end
+
+-- Taken from https://github.com/esx-framework/es_extended/blob/legacy/common/modules/math.lua
+function Round(value, numDecimalPlaces)
+	if numDecimalPlaces then
+		local power = 10^numDecimalPlaces
+		return math.floor((value * power) + 0.5) / (power)
+	else
+		return math.floor(value + 0.5)
+	end
+end
+
 RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
     local garagetype = data.type
     local garageId = data.garageId
@@ -714,7 +766,8 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
                     { label = Lang:t('menu.metadata.fuel'),   value = currentFuel,   progress = v.fuel },
                     { label = Lang:t('menu.metadata.engine'), value = enginePercent, progress = v.engine / 10 },
                     { label = Lang:t('menu.metadata.body'),   value = bodyPercent,   progress = v.body / 10 },
-                    { label = Lang:t('menu.metadata.tank'),   value = tankPercent,   progress = v.tank / 10 }
+                    { label = Lang:t('menu.metadata.tank'),   value = tankPercent,   progress = v.tank / 10 },
+                    { label = Lang:t('menu.metadata.mileage'),value = v.mileage .. " KM"},
                 },
                 event = "qb-garages:client:TakeOutGarage",
                 args = {

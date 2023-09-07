@@ -111,6 +111,12 @@ Config.DepotPrice = 60.0 -- The price to take out a despawned vehicle from impou
 Config.DrawTextPosition = 'left-center' -- location of drawtext: left-center, top-center, right-center (-center isn't obligatory)
 Config.SpawnWithEngineRunning = false
 Config.Debug = true
+KilometerStand = {
+    prefix = "OD:",
+    AddMileageEvent = "VoegKilometerstand",
+    refresh = 1, -- Time in minutes to save all cars mileage
+}
+
 -- set useVehicleSpawner = true for each garage that has type job and should use the vehicle spawner instead of personal vehicles
 Config.JobVehicles = {
 	['pd1'] = { -- jobGarageIdentifier
