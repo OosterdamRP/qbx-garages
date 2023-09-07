@@ -711,6 +711,12 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
         return lib.notify({ id = 'no_vehicles', description = Lang:t("error.no_vehicles"), type = 'error', duration = 5000 })
     end
 
+    -- ColorScheme
+    local minAverageValue = 0
+    local maxAverageValue = 100
+    local maxColor = {0, 255, 0} -- Green
+    local minColor = {255, 0, 0} -- Red
+
     MenuGarageOptions = {}
     result = result and result or {}
     for _, v in pairs(result) do
@@ -720,6 +726,15 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
         local currentFuel = tostring(math.floor(v.fuel)) .. '%'
         local vehData = QBCore.Shared.Vehicles[v.vehicle]
         local vname = 'Voertuig bestaat niet'
+
+        -- ColorScheme
+        local averageValue = ((v.engine / 10) + v.fuel + (v.body / 10) + (v.tank / 10)) / 4
+        local colorScheme = {}
+        for i = 1, 3 do
+            colorScheme[i] = math.floor(minColor[i] + (maxColor[i] - minColor[i]) * ((averageValue - minAverageValue) / (maxAverageValue - minAverageValue)))
+        end
+        local colorScheme = string.format("#%02X%02X%02X", colorScheme[1], colorScheme[2], colorScheme[3])
+
         if vehData then
             local vehCategories = GetVehicleCategoriesFromClass(GetVehicleClassFromName(v.vehicle))
             if garage and garage.vehicleCategories and not lib.table.contains(garage.vehicleCategories, vehCategories) then
@@ -740,7 +755,7 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
             MenuGarageOptions[#MenuGarageOptions+1] = {
                 title = Lang:t('menu.header.depot', {value = vname, value2 = v.depotprice }),
                 description = Lang:t('menu.text.depot', {value = v.plate, value2 = currentFuel, value3 = enginePercent, value4 = bodyPercent}),
-                colorScheme = 'red',
+                colorScheme = colorScheme,
                 metadata = {
                     -- { label = Lang:t('menu.metadata.plate'),  value = v.plate },
                     { label = Lang:t('menu.metadata.fuel'),   value = currentFuel,   progress = v.fuel },
@@ -760,7 +775,7 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
             MenuGarageOptions[#MenuGarageOptions+1] = {
                 title = Lang:t('menu.header.garage', {value = vname, value2 = v.plate}),
                 description = Lang:t('menu.text.garage', {value = v.state}),
-                colorScheme = 'red',
+                colorScheme = colorScheme,
                 metadata = {
                     -- { label = Lang:t('menu.metadata.plate'),  value = v.plate },
                     { label = Lang:t('menu.metadata.fuel'),   value = currentFuel,   progress = v.fuel },
