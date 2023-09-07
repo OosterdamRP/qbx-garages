@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS `player_vehicles` (
     `tank` float DEFAULT 1000,
     `state` int(11) DEFAULT 1,
     `depotprice` int(11) NOT NULL DEFAULT 0,
+    `kilometerstand` decimal(20,2) DEFAULT 0.00,
     `drivingdistance` int(50) DEFAULT NULL,
     `status` text DEFAULT NULL,
     PRIMARY KEY (`id`),

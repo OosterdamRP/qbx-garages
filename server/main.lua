@@ -463,13 +463,13 @@ function GetTableCount(table)
 end
 
 function GetVehicleMileage(plate)
-    local result = MySQL.Sync.fetchAll("SELECT mileage FROM player_vehicles WHERE plate = @plate", {
+    local result = MySQL.Sync.fetchAll("SELECT kilometerstand FROM player_vehicles WHERE plate = @plate", {
         ["@plate"] = plate
     })
     if result[1] then
-        return tonumber(result[1].mileage)
+        return tonumber(result[1].kilometerstand)
     else
-        return 0.00 -- Default mileage if no record is found
+        return 0.00 -- Default kilometerstand if no record is found
     end
 end
 
@@ -477,7 +477,7 @@ function SaveMileage()
     local count = 0
     local requests = {}
     for k,v in pairs(MileageCache) do
-        requests[#requests + 1] = MySQL.update("UPDATE player_vehicles SET mileage = mileage + "..v.count.." WHERE player_vehicles.plate = '"..k.."'")
+        requests[#requests + 1] = MySQL.update("UPDATE player_vehicles SET kilometerstand = kilometerstand + "..v.count.." WHERE player_vehicles.plate = '"..k.."'")
         count = count + 1
     end
 

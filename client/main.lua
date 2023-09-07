@@ -782,7 +782,7 @@ RegisterNetEvent("qb-garages:client:GarageMenu", function(data)
                     { label = Lang:t('menu.metadata.engine'), value = enginePercent, progress = v.engine / 10 },
                     { label = Lang:t('menu.metadata.body'),   value = bodyPercent,   progress = v.body / 10 },
                     { label = Lang:t('menu.metadata.tank'),   value = tankPercent,   progress = v.tank / 10 },
-                    { label = Lang:t('menu.metadata.mileage'),value = v.mileage .. " KM"},
+                    { label = Lang:t('menu.metadata.mileage'),value = v.kilometerstand .. " KM"},
                 },
                 event = "qb-garages:client:TakeOutGarage",
                 args = {
